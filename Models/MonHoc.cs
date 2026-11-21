@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -33,4 +33,7 @@ public partial class MonHoc
 
     [InverseProperty("MonHoc")]
     public virtual ICollection<ThoiKhoaBieu> ThoiKhoaBieus { get; set; } = new List<ThoiKhoaBieu>();
+
+    [InverseProperty("MonHoc")]
+    public virtual ICollection<GiaoVienMonHoc> GiaoVienMonHocs { get; set; } = new List<GiaoVienMonHoc>();
 }

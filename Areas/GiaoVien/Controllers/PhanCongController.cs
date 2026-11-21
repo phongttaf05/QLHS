@@ -17,7 +17,7 @@ namespace QLHS.Areas.GiaoVien.Controllers
             _context = context;
         }
 
-        // GET: /GiaoVien/PhanCong
+        // GET: /GiaoVien/PhanCong (Chỉ xem danh sách phân công giảng dạy của tôi; việc xác nhận lịch thực hiện trên Bản TKB nháp)
         public async Task<IActionResult> Index()
         {
             int userId = GetCurrentUserId();
@@ -25,75 +25,28 @@ namespace QLHS.Areas.GiaoVien.Controllers
             if (gv == null)
             {
                 ViewBag.ErrorMessage = "Chưa liên kết hồ sơ Giáo viên với tài khoản này.";
-                return View();
+                return View(new List<PhanCongGiangDay>());
             }
 
             ViewBag.TenGiaoVien = gv.HoTen;
 
             var dsPhanCong = await _context.PhanCongGiangDays
-                .Include(p => p.LopHoc)
+                .Include(p => p.LopHoc).ThenInclude(l => l!.KhoiLop)
                 .Include(p => p.MonHoc)
-                .Include(p => p.HocKy)
-                    .ThenInclude(h => h!.NamHoc)
+                .Include(p => p.HocKy).ThenInclude(h => h!.NamHoc)
                 .Where(p => p.GiaoVienId == gv.Id)
-                .OrderBy(p => p.LopHoc!.TenLop)
+                .OrderByDescending(p => p.HocKyId)
+                .ThenBy(p => p.LopHoc!.TenLop)
                 .ThenBy(p => p.MonHoc!.TenMon)
                 .ToListAsync();
 
-            // Kiểm tra khóa phân công theo đúng các Học kỳ trong danh sách phân công của giáo viên
-            var hocKyIds = dsPhanCong.Where(p => p.HocKyId.HasValue).Select(p => p.HocKyId!.Value).Distinct().ToList();
-            var banCongBoList = await _context.BanTkbs
-                .Where(b => b.TrangThai == "DA_CONG_BO" && b.HocKyId.HasValue && hocKyIds.Contains(b.HocKyId.Value))
-                .OrderByDescending(b => b.Id)
-                .ToListAsync();
-
-            var lockedHocKyIds = banCongBoList.Select(b => b.HocKyId!.Value).ToHashSet();
-            bool daKhoaPhanCong = hocKyIds.Any() && hocKyIds.All(id => lockedHocKyIds.Contains(id));
-            var banCongBoMoiNhat = banCongBoList.FirstOrDefault();
-
-            ViewBag.LockedHocKyIds = lockedHocKyIds;
-            ViewBag.DaKhoaPhanCong = daKhoaPhanCong;
-            ViewBag.ThongBaoKhoa = daKhoaPhanCong
-                ? $"Bản Thời khóa biểu số {banCongBoMoiNhat?.SoPhienBan} đã được Ban Giám Hiệu CÔNG BỐ CHÍNH THỨC. Phân công giảng dạy đã được chốt và khóa sổ, không thể thay đổi."
-                : null;
+            // Đếm số bản TKB nháp đang chờ GV này xác nhận để nhắc chuyển sang trang TKB
+            ViewBag.SoBanNhapChoXn = await _context.BanTkbXacNhanGvs
+                .CountAsync(x => x.GiaoVienId == gv.Id &&
+                                 x.BanTkb.TrangThai == "CHO_GV_XAC_NHAN" &&
+                                 x.TrangThai == "CHO_XAC_NHAN");
 
             return View(dsPhanCong);
-        }
-
-        // POST: /GiaoVien/PhanCong/XacNhan
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> XacNhan(int phanCongId, string trangThai, string? yKien)
-        {
-            int userId = GetCurrentUserId();
-            var gv = await _context.GiaoViens.FirstOrDefaultAsync(g => g.TaiKhoanId == userId);
-            if (gv == null) return Json(new { success = false, message = "Bạn không có quyền thao tác!" });
-
-            var pc = await _context.PhanCongGiangDays.FindAsync(phanCongId);
-            if (pc == null || pc.GiaoVienId != gv.Id)
-            {
-                return Json(new { success = false, message = "Không tìm thấy phân công hoặc bạn không phụ trách môn này!" });
-            }
-
-            // Chặn sửa đổi khi đã có bản TKB công bố
-            bool daCongBo = await _context.BanTkbs.AnyAsync(b => b.HocKyId == pc.HocKyId && b.TrangThai == "DA_CONG_BO");
-            if (daCongBo)
-            {
-                return Json(new { success = false, message = "Thời khóa biểu đã được Ban Giám Hiệu CÔNG BỐ CHÍNH THỨC. Phân công giảng dạy đã được chốt cố định và không thể điều chỉnh!" });
-            }
-
-            if (trangThai == "CAN_DIEU_CHINH" && string.IsNullOrWhiteSpace(yKien))
-            {
-                return Json(new { success = false, message = "Vui lòng nhập lý do/nguyện vọng khi yêu cầu điều chỉnh phân công!" });
-            }
-
-            pc.TrangThaiXacNhan = trangThai == "CAN_DIEU_CHINH" ? "CAN_DIEU_CHINH" : "DA_XAC_NHAN";
-            pc.NguoiPhanHoiId = userId;
-            pc.NgayPhanHoi = DateTime.Now;
-            pc.YKien = yKien?.Trim();
-
-            await _context.SaveChangesAsync();
-            return Json(new { success = true, message = trangThai == "CAN_DIEU_CHINH" ? "Đã gửi ý kiến đề nghị điều chỉnh đến BGH!" : "Đã xác nhận phân công giảng dạy thành công!" });
         }
 
         private int GetCurrentUserId()

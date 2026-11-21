@@ -204,14 +204,7 @@ namespace QLHS.Services
                     report.Errors.Add($"Lớp {tenLop}, môn {tenMon} cần {pc.SoTietTuan} tiết/tuần nhưng giáo viên phụ trách ({tenGv}) nằm ngoài danh sách giáo viên được chọn!");
                 }
 
-                if (pc.TrangThaiXacNhan != "DA_XAC_NHAN")
-                {
-                    report.Errors.Add($"Phân công [Lớp {tenLop} - Môn {tenMon} - GV {tenGv}] chưa được giáo viên xác nhận (trạng thái: {pc.TrangThaiXacNhan ?? "CHO_XAC_NHAN"})!");
-                }
-                if (pc.TrangThaiXacNhan == "CAN_DIEU_CHINH")
-                {
-                    report.Errors.Add($"Phân công [Lớp {tenLop} - Môn {tenMon} - GV {tenGv}] có yêu cầu điều chỉnh: '{pc.YKien}'!");
-                }
+                // Việc xác nhận / góp ý sửa đổi của giáo viên được thực hiện trực tiếp trên Bản TKB nháp (CHO_GV_XAC_NHAN)
             }
 
             // 3. KIỂM TRA SỐ TIẾT CHUẨN, MIN/MAX TUẦN, MIN/MAX NGÀY
@@ -612,9 +605,9 @@ namespace QLHS.Services
                 var banTkb = await _context.BanTkbs.FirstOrDefaultAsync(b => b.Id == banTkbId);
                 if (banTkb == null) return (false, "Không tìm thấy Bản TKB!", 0);
 
-                if (banTkb.TrangThai != "DA_XAC_NHAN" && banTkb.TrangThai != "XEP_THAT_BAI" && banTkb.TrangThai != "LICH_NHAP")
+                if (banTkb.TrangThai != "DA_XAC_NHAN" && banTkb.TrangThai != "XEP_THAT_BAI" && banTkb.TrangThai != "LICH_NHAP" && banTkb.TrangThai != "CHO_GV_XAC_NHAN")
                 {
-                    return (false, $"Chỉ có thể chạy xếp lịch khi bản TKB ở trạng thái DA_XAC_NHAN, XEP_THAT_BAI hoặc LICH_NHAP. Trạng thái hiện tại: '{banTkb.TrangThai}'", 0);
+                    return (false, $"Chỉ có thể chạy xếp lịch khi bản TKB ở trạng thái DA_XAC_NHAN, XEP_THAT_BAI, LICH_NHAP hoặc CHO_GV_XAC_NHAN. Trạng thái hiện tại: '{banTkb.TrangThai}'", 0);
                 }
 
                 if (string.IsNullOrWhiteSpace(banTkb.DauVaoDaChotJson))
@@ -1088,9 +1081,9 @@ namespace QLHS.Services
             {
                 var banTkb = await _context.BanTkbs.FirstOrDefaultAsync(b => b.Id == request.BanTkbId);
                 if (banTkb == null) return (false, "Không tìm thấy Bản TKB!");
-                if (banTkb.TrangThai != "LICH_NHAP")
+                if (banTkb.TrangThai != "LICH_NHAP" && banTkb.TrangThai != "CHO_GV_XAC_NHAN")
                 {
-                    return (false, "Chỉ có thể chỉnh sửa lịch khi ở trạng thái LICH_NHAP!");
+                    return (false, "Chỉ có thể chỉnh sửa lịch khi ở trạng thái LICH_NHAP hoặc CHO_GV_XAC_NHAN!");
                 }
 
                 // Kiểm tra 2 ô khóa Chào cờ & Sinh hoạt lớp: KHÔNG CHO PHÉP KÉO THẢ VÀO HOẶC RA
@@ -1209,7 +1202,7 @@ namespace QLHS.Services
                 .FirstOrDefaultAsync(b => b.Id == banTkbId);
 
             if (banTkb == null) return (false, "Không tìm thấy Bản TKB!");
-            if (banTkb.TrangThai != "LICH_NHAP") return (false, "Chỉ có thể xếp lại phần còn lại khi ở trạng thái LICH_NHAP!");
+            if (banTkb.TrangThai != "LICH_NHAP" && banTkb.TrangThai != "CHO_GV_XAC_NHAN") return (false, "Chỉ có thể xếp lại phần còn lại khi ở trạng thái LICH_NHAP hoặc CHO_GV_XAC_NHAN!");
 
             CauHinhDotXepModel config = new CauHinhDotXepModel();
             if (!string.IsNullOrWhiteSpace(banTkb.DieuKienJson))

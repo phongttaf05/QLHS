@@ -75,4 +75,7 @@ public partial class BanTkb
 
     [InverseProperty("BanTkb")]
     public virtual ICollection<ThoiKhoaBieu> ThoiKhoaBieus { get; set; } = new List<ThoiKhoaBieu>();
+
+    [InverseProperty("BanTkb")]
+    public virtual ICollection<BanTkbXacNhanGv> BanTkbXacNhanGvs { get; set; } = new List<BanTkbXacNhanGv>();
 }

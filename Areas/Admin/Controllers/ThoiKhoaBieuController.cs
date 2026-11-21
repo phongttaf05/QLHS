@@ -131,6 +131,18 @@ namespace QLHS.Areas.Admin.Controllers
             }
             ViewBag.DanhSachKhungTiet = dsKhungTiet;
 
+            // Danh sách trạng thái xác nhận lịch nháp của giáo viên (nếu có)
+            var dsXacNhanGv = selectedBanTkbId > 0
+                ? await _context.BanTkbXacNhanGvs
+                    .Include(x => x.GiaoVien)
+                    .Where(x => x.BanTkbId == selectedBanTkbId)
+                    .OrderByDescending(x => x.TrangThai == "CAN_DIEU_CHINH")
+                    .ThenBy(x => x.TrangThai == "DA_XAC_NHAN")
+                    .ThenBy(x => x.GiaoVien.HoTen)
+                    .ToListAsync()
+                : new List<BanTkbXacNhanGv>();
+            ViewBag.DsXacNhanGv = dsXacNhanGv;
+
             return View(dsTkb);
         }
 
@@ -384,6 +396,60 @@ namespace QLHS.Areas.Admin.Controllers
             return Json(new { success = result.Success, message = result.Message });
         }
 
+        // POST: Admin/ThoiKhoaBieu/GuiGvXacNhan (Gửi bản TKB nháp cho các giáo viên liên quan xác nhận hoặc góp ý sửa đổi)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GuiGvXacNhan(int banTkbId)
+        {
+            var banTkb = await _context.BanTkbs
+                .Include(b => b.ThoiKhoaBieus)
+                    .ThenInclude(t => t.PhanCong)
+                .FirstOrDefaultAsync(b => b.Id == banTkbId);
+
+            if (banTkb == null)
+                return Json(new { success = false, message = "Không tìm thấy Bản TKB!" });
+
+            if (banTkb.TrangThai != "LICH_NHAP" && banTkb.TrangThai != "CHO_GV_XAC_NHAN")
+                return Json(new { success = false, message = "Chỉ có thể gửi xác nhận khi Bản TKB đang ở trạng thái LICH_NHAP hoặc CHO_GV_XAC_NHAN!" });
+
+            if (!banTkb.ThoiKhoaBieus.Any())
+                return Json(new { success = false, message = "Bản TKB nháp chưa có tiết học nào. Vui lòng chạy xếp lịch trước!" });
+
+            var gvIds = banTkb.ThoiKhoaBieus
+                .Select(t => t.GiaoVienId ?? t.PhanCong?.GiaoVienId)
+                .Where(id => id.HasValue && id.Value > 0)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
+
+            if (!gvIds.Any())
+                return Json(new { success = false, message = "Không tìm thấy giáo viên nào trong bản TKB nháp này!" });
+
+            var existing = await _context.BanTkbXacNhanGvs
+                .Where(x => x.BanTkbId == banTkbId)
+                .ToListAsync();
+
+            if (existing.Any())
+                _context.BanTkbXacNhanGvs.RemoveRange(existing);
+
+            foreach (var gvId in gvIds)
+            {
+                _context.BanTkbXacNhanGvs.Add(new BanTkbXacNhanGv
+                {
+                    BanTkbId = banTkbId,
+                    GiaoVienId = gvId,
+                    TrangThai = "CHO_XAC_NHAN",
+                    YKien = null,
+                    NgayPhanHoi = null
+                });
+            }
+
+            banTkb.TrangThai = "CHO_GV_XAC_NHAN";
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = $"Đã gửi Bản TKB nháp [v{banTkb.SoPhienBan}] tới {gvIds.Count} giáo viên để xác nhận/góp ý!" });
+        }
+
         // POST: Admin/ThoiKhoaBieu/DuyetBanTkb
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -391,13 +457,27 @@ namespace QLHS.Areas.Admin.Controllers
         {
             var banTkb = await _context.BanTkbs
                 .Include(b => b.ThoiKhoaBieus)
+                .Include(b => b.BanTkbXacNhanGvs)
+                    .ThenInclude(x => x.GiaoVien)
                 .FirstOrDefaultAsync(b => b.Id == banTkbId);
 
             if (banTkb == null) return Json(new { success = false, message = "Không tìm thấy Bản TKB!" });
 
-            if (banTkb.TrangThai != "LICH_NHAP")
+            if (banTkb.TrangThai != "LICH_NHAP" && banTkb.TrangThai != "CHO_GV_XAC_NHAN")
             {
-                return Json(new { success = false, message = "Chỉ có thể duyệt khi bản TKB ở trạng thái LICH_NHAP!" });
+                return Json(new { success = false, message = "Chỉ có thể duyệt khi bản TKB ở trạng thái LICH_NHAP hoặc CHO_GV_XAC_NHAN!" });
+            }
+
+            // Chặn duyệt nếu có giáo viên đang yêu cầu sửa đổi bản nháp
+            var gvYeuCauSua = banTkb.BanTkbXacNhanGvs.Where(x => x.TrangThai == "CAN_DIEU_CHINH").ToList();
+            if (gvYeuCauSua.Any())
+            {
+                var dsTen = string.Join(", ", gvYeuCauSua.Take(3).Select(x => x.GiaoVien?.HoTen));
+                return Json(new
+                {
+                    success = false,
+                    message = $"KHÔNG THỂ DUYỆT: Có {gvYeuCauSua.Count} giáo viên đang yêu cầu sửa đổi bản nháp ({dsTen}). Vui lòng điều chỉnh và gửi xác nhận lại!"
+                });
             }
 
             // KIỂM TRA CHẶN: Không duyệt lịch khi còn tiết chưa xếp hoặc thiếu tiết

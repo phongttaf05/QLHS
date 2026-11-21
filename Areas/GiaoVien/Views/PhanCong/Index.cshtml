@@ -1,28 +1,37 @@
 @model IEnumerable<QLHS.Models.PhanCongGiangDay>
 
 @{
-    ViewData["Title"] = "Xác Nhận Phân Công Chuyên Môn";
+    ViewData["Title"] = "Phân Công Giảng Dạy Của Tôi";
+    int soBanNhapChoXn = ViewBag.SoBanNhapChoXn ?? 0;
 }
-
-@Html.AntiForgeryToken()
 
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb small">
         <li class="breadcrumb-item"><a asp-area="GiaoVien" asp-controller="Home" asp-action="Index" class="text-decoration-none text-success"><i class="bi bi-house-door me-1"></i>Trang chủ</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Phân công chuyên môn</li>
+        <li class="breadcrumb-item active" aria-current="page">Phân công giảng dạy</li>
     </ol>
 </nav>
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
         <h3 class="fw-bold text-success mb-1">
-            <i class="bi bi-journal-check me-2"></i>PHÂN CÔNG GIẢNG DẠY CHUYÊN MÔN
+            <i class="bi bi-journal-check me-2"></i>PHÂN CÔNG GIẢNG DẠY CỦA TÔI
         </h3>
-        <p class="text-muted mb-0">Thầy/Cô <strong>@ViewBag.TenGiaoVien</strong> kiểm tra danh sách môn được phân công và xác nhận để Nhà trường tiến hành xếp Thời khóa biểu.</p>
+        <p class="text-muted mb-0">Danh sách lớp và môn học Ban Giám Hiệu phân công cho Thầy/Cô <strong>@ViewBag.TenGiaoVien</strong>.</p>
     </div>
     <div class="d-flex gap-2">
-        <a asp-area="GiaoVien" asp-controller="ThoiKhoaBieu" asp-action="Index" class="btn btn-outline-success fw-bold">
-            <i class="bi bi-calendar3-week me-1"></i>Xem Thời Khóa Biểu
+        <a asp-area="GiaoVien" asp-controller="ThoiKhoaBieu" asp-action="Index"
+           asp-route-mode="@(soBanNhapChoXn > 0 ? "nhap" : "chinh-thuc")"
+           class="btn @(soBanNhapChoXn > 0 ? "btn-warning text-dark" : "btn-outline-success") fw-bold shadow-sm">
+            <i class="bi bi-calendar3-week me-1"></i>
+            @if (soBanNhapChoXn > 0)
+            {
+                <span>Xem & Xác Nhận TKB Nháp (@soBanNhapChoXn)</span>
+            }
+            else
+            {
+                <span>Xem Thời Khóa Biểu</span>
+            }
         </a>
     </div>
 </div>
@@ -32,24 +41,26 @@
     <div class="alert alert-danger rounded-4 shadow-sm">@ViewBag.ErrorMessage</div>
 }
 
-@if (ViewBag.ThongBaoKhoa != null)
+@if (soBanNhapChoXn > 0)
 {
-    <div class="alert alert-info rounded-4 shadow-sm border-0 d-flex align-items-center gap-3 mb-4">
-        <i class="bi bi-shield-check fs-2 text-primary"></i>
+    <div class="alert alert-warning border-0 rounded-4 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <div>
-            <h6 class="fw-bold mb-1 text-primary">KẾ HOẠCH DẠY ĐÃ ĐƯỢC CHỐT VÀ CÔNG BỐ</h6>
-            <div class="small text-muted">@ViewBag.ThongBaoKhoa</div>
+            <i class="bi bi-bell-fill text-danger me-2"></i>
+            <strong>Ban Giám Hiệu đã gửi @soBanNhapChoXn bản TKB nháp</strong> cần Thầy/Cô kiểm tra và xác nhận (hoặc góp ý sửa đổi).
         </div>
+        <a asp-area="GiaoVien" asp-controller="ThoiKhoaBieu" asp-action="Index" asp-route-mode="nhap" class="btn btn-sm btn-danger fw-bold">
+            Đi tới xác nhận ngay <i class="bi bi-arrow-right ms-1"></i>
+        </a>
     </div>
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="fw-bold mb-0 text-dark">
             <i class="bi bi-list-check text-primary me-2"></i>DANH SÁCH MÔN HỌC ĐƯỢC PHÂN CÔNG
         </h5>
         <span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">
-            Tổng cộng: @Model.Count() môn (@Model.Sum(m => m.SoTietTuan ?? 0) tiết/tuần)
+            Tổng cộng: @(Model?.Count() ?? 0) môn (@(Model?.Sum(m => m.SoTietTuan ?? 0) ?? 0) tiết/tuần)
         </span>
     </div>
     <div class="card-body p-0">
@@ -60,10 +71,8 @@
                         <th class="ps-4">Học kỳ / Năm học</th>
                         <th>Lớp học</th>
                         <th>Môn học</th>
-                        <th>Số tiết/tuần</th>
-                        <th>Trạng thái xác nhận</th>
-                        <th>Ý kiến phản hồi</th>
-                        <th class="text-end pe-4">Thao tác xác nhận</th>
+                        <th class="text-center">Số tiết/tuần</th>
+                        <th class="pe-4">Thời gian hiệu lực</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,44 +85,17 @@
                                     <strong class="text-dark">@(item.HocKy?.NamHoc?.TenNamHoc ?? "---")</strong>
                                     <span class="badge bg-secondary-subtle text-secondary ms-1">HK @(item.HocKy?.SoHocKy ?? 1)</span>
                                 </td>
-                                <td><span class="badge bg-primary-subtle text-primary fs-6 px-3 py-2">Lớp @(item.LopHoc?.TenLop ?? "---")</span></td>
+                                <td>
+                                    <span class="badge bg-primary-subtle text-primary fs-6 px-3 py-2">
+                                        Lớp @(item.LopHoc?.TenLop ?? "---")
+                                    </span>
+                                </td>
                                 <td><strong class="text-dark fs-6">@(item.MonHoc?.TenMon ?? "---")</strong></td>
-                                <td><span class="fw-bold text-success fs-6">@(item.SoTietTuan ?? 0)</span> tiết/tuần</td>
-                                <td>
-                                    @if (item.TrangThaiXacNhan == "DA_XAC_NHAN")
-                                    {
-                                        <span class="badge bg-success px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Đã xác nhận</span>
-                                    }
-                                    else if (item.TrangThaiXacNhan == "CAN_DIEU_CHINH")
-                                    {
-                                        <span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-exclamation-triangle-fill me-1"></i>Đề nghị điều chỉnh</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary px-3 py-2"><i class="bi bi-hourglass-split me-1"></i>Chờ xác nhận</span>
-                                    }
+                                <td class="text-center">
+                                    <span class="fw-bold text-success fs-6">@(item.SoTietTuan ?? 0)</span> tiết/tuần
                                 </td>
-                                <td>
-                                    <span class="small text-muted">@(string.IsNullOrEmpty(item.YKien) ? "---" : item.YKien)</span>
-                                </td>
-                                <td class="text-end pe-4">
-                                    @if (ViewBag.DaKhoaPhanCong == true)
-                                    {
-                                        <span class="badge bg-light text-muted border px-3 py-2">
-                                            <i class="bi bi-lock-fill me-1"></i>Đã khóa sổ
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-success fw-bold @(item.TrangThaiXacNhan == "DA_XAC_NHAN" ? "active" : "")" onclick="xacNhanPhanCong(@item.Id, 'DA_XAC_NHAN')">
-                                                <i class="bi bi-check-lg me-1"></i>Đồng ý
-                                            </button>
-                                            <button class="btn btn-outline-danger fw-bold @(item.TrangThaiXacNhan == "CAN_DIEU_CHINH" ? "active" : "")" onclick="deNghiChinh(@item.Id)">
-                                                <i class="bi bi-pencil-square me-1"></i>Đề nghị chỉnh
-                                            </button>
-                                        </div>
-                                    }
+                                <td class="small text-muted pe-4">
+                                    @(item.TuNgay?.ToString("dd/MM/yyyy") ?? "---") → @(item.DenNgay?.ToString("dd/MM/yyyy") ?? "---")
                                 </td>
                             </tr>
                         }
@@ -121,9 +103,9 @@
                     else
                     {
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
+                            <td colspan="5" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox fs-2 text-muted d-block mb-2"></i>
-                                Thầy/Cô chưa có phân công chuyên môn nào trong học kỳ này.
+                                Thầy/Cô chưa có phân công giảng dạy nào.
                             </td>
                         </tr>
                     }
@@ -132,37 +114,3 @@
         </div>
     </div>
 </div>
-
-<script>
-function getAntiForgeryToken() {
-    return document.querySelector('input[name="__RequestVerificationToken"]').value;
-}
-
-function xacNhanPhanCong(phanCongId, trangThai, yKien = '') {
-    const formData = new URLSearchParams();
-    formData.append('phanCongId', phanCongId);
-    formData.append('trangThai', trangThai);
-    formData.append('yKien', yKien);
-
-    fetch('/GiaoVien/PhanCong/XacNhan', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'RequestVerificationToken': getAntiForgeryToken()
-        },
-        body: formData.toString()
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-        if (data.success) location.reload();
-    });
-}
-
-function deNghiChinh(phanCongId) {
-    const yKien = prompt('Vui lòng nhập lý do hoặc nguyện vọng đề nghị điều chỉnh phân công:');
-    if (yKien && yKien.trim().length > 0) {
-        xacNhanPhanCong(phanCongId, 'CAN_DIEU_CHINH', yKien.trim());
-    }
-}
-</script>

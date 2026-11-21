@@ -17,6 +17,8 @@ public partial class QlhsContext : DbContext
 
     public virtual DbSet<BanTkb> BanTkbs { get; set; }
 
+    public virtual DbSet<BanTkbXacNhanGv> BanTkbXacNhanGvs { get; set; }
+
     public virtual DbSet<CauHinhMonKhoi> CauHinhMonKhois { get; set; }
 
     public virtual DbSet<DanhGiaDinhKyTongHop> DanhGiaDinhKyTongHops { get; set; }
@@ -26,6 +28,8 @@ public partial class QlhsContext : DbContext
     public virtual DbSet<DiemDanh> DiemDanhs { get; set; }
 
     public virtual DbSet<GiaoVien> GiaoViens { get; set; }
+
+    public virtual DbSet<GiaoVienMonHoc> GiaoVienMonHocs { get; set; }
 
     public virtual DbSet<GioBanGiaoVien> GioBanGiaoViens { get; set; }
 
@@ -63,6 +67,39 @@ public partial class QlhsContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<GiaoVienMonHoc>(entity =>
+        {
+            entity.HasKey(e => new { e.GiaoVienId, e.MonHocId });
+
+            entity.HasOne(d => d.GiaoVien)
+                .WithMany(p => p.GiaoVienMonHocs)
+                .HasForeignKey(d => d.GiaoVienId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.MonHoc)
+                .WithMany(p => p.GiaoVienMonHocs)
+                .HasForeignKey(d => d.MonHocId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BanTkbXacNhanGv>(entity =>
+        {
+            entity.HasKey(e => new { e.BanTkbId, e.GiaoVienId });
+
+            entity.Property(e => e.TrangThai).HasMaxLength(24).IsUnicode(false);
+            entity.Property(e => e.NgayPhanHoi).HasColumnType("datetime2(0)");
+
+            entity.HasOne(d => d.BanTkb)
+                .WithMany(p => p.BanTkbXacNhanGvs)
+                .HasForeignKey(d => d.BanTkbId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.GiaoVien)
+                .WithMany(p => p.BanTkbXacNhanGvs)
+                .HasForeignKey(d => d.GiaoVienId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<BanTkb>(entity =>
         {
             entity.HasKey(e => e.Id);

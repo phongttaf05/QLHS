@@ -68,8 +68,70 @@ namespace QLHS.Areas.GiaoVien.Controllers
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.ThoiGianCapNhat).First());
 
             ViewBag.DanhGiaMap = dsDanhGia;
+            ViewBag.SoHsDaNhap = dsHocSinh.Count(hs => dsDanhGia.ContainsKey(hs.Id));
+            ViewBag.DaChotDiem = dsHocSinh.Any() && dsHocSinh.All(hs => dsDanhGia.TryGetValue(hs.Id, out var d) && d.DaKhoaSo == true);
 
             return View();
+        }
+
+        // POST: /GiaoVien/DanhGiaMonHoc/ChotDiem
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChotDiem(int lopHocId, int monHocId, int hocKy)
+        {
+            int userId = GetCurrentUserId();
+            var gv = await _context.GiaoViens.FirstOrDefaultAsync(g => g.TaiKhoanId == userId);
+            if (gv == null)
+                return Json(new { success = false, message = "Không tìm thấy hồ sơ giáo viên!" });
+
+            bool duocPhanCong = await _context.PhanCongGiangDays.AnyAsync(p =>
+                p.GiaoVienId == gv.Id && p.LopHocId == lopHocId && p.MonHocId == monHocId);
+            if (!duocPhanCong)
+                return Json(new { success = false, message = "Thầy/Cô không được phân công giảng dạy môn học này cho lớp!" });
+
+            var dsHocSinh = await _context.HocSinhs
+                .Where(h => h.LopHocHienTaiId == lopHocId && h.TrangThaiHoc == "dang_hoc" && h.NgayXoaMem == null)
+                .OrderBy(h => h.HoTen)
+                .ToListAsync();
+
+            if (!dsHocSinh.Any())
+                return Json(new { success = false, message = "Lớp học chưa có học sinh đang học để chốt điểm!" });
+
+            var dsDanhGia = await _context.DanhGiaMonHocs
+                .Where(d => d.LopHocId == lopHocId && d.MonHocId == monHocId && d.HocKy == hocKy && d.HocSinhId.HasValue)
+                .ToListAsync();
+
+            var dgMap = dsDanhGia
+                .GroupBy(d => d.HocSinhId!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var hsChuaNhap = dsHocSinh
+                .Where(hs => !dgMap.TryGetValue(hs.Id, out var d) || string.IsNullOrWhiteSpace(d.MucDanhGia))
+                .ToList();
+
+            if (hsChuaNhap.Any())
+            {
+                var tenMau = string.Join(", ", hsChuaNhap.Take(3).Select(h => h.HoTen));
+                string them = hsChuaNhap.Count > 3 ? $" và {hsChuaNhap.Count - 3} HS khác" : "";
+                return Json(new
+                {
+                    success = false,
+                    message = $"Không thể chốt sổ: Còn {hsChuaNhap.Count} học sinh chưa lưu đánh giá ({tenMau}{them}). Vui lòng lưu đầy đủ trước khi chốt điểm!"
+                });
+            }
+
+            if (dsDanhGia.All(d => d.DaKhoaSo == true))
+                return Json(new { success = false, message = "Bảng điểm môn học này đã được chốt sổ trước đó!" });
+
+            var now = DateTime.Now;
+            foreach (var dg in dsDanhGia)
+            {
+                dg.DaKhoaSo = true;
+                dg.ThoiGianCapNhat = now;
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = $"Đã chốt sổ điểm thành công cho {dsHocSinh.Count} học sinh! Bảng điểm đã được khóa cố định." });
         }
 
         // POST: /GiaoVien/DanhGiaMonHoc/LuuDanhGia

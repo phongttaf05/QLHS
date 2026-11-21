@@ -13,5 +13,8 @@ namespace QLHS.Areas.Admin.ViewModels
         public string? MatKhau { get; set; }
         public string? SoDienThoai { get; set; }
         public string? Email { get; set; }
+
+        // Danh sách Môn học chuyên môn (bảng giao_vien_mon_hoc)
+        public List<int>? MonHocIds { get; set; }
     }
 }

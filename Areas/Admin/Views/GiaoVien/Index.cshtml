@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Quản lý Hồ sơ Giáo viên";
+    var monHocs = ViewBag.MonHocs as List<QLHS.Models.MonHoc>;
 }
 
 <!-- TIÊU ĐỀ & NÚT THÊM MỚI -->
@@ -46,6 +47,7 @@
                         <th>Tên Đăng Nhập</th>
                         <th>Mật Khẩu</th>
                         <th>Thông Tin Liên Hệ</th>
+                        <th>Chuyên Môn</th>
                         <th>Lớp Chủ Nhiệm</th>
                         <th class="text-end pe-3">Thao Tác</th>
                     </tr>
@@ -102,6 +104,21 @@
                                     else
                                     {
                                         <span class="text-muted small">---</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.GiaoVienMonHocs != null && item.GiaoVienMonHocs.Any())
+                                    {
+                                        <div class="d-flex flex-wrap gap-1" style="max-width: 220px;">
+                                            @foreach (var gm in item.GiaoVienMonHocs.OrderBy(x => x.MonHoc?.TenMon))
+                                            {
+                                                <span class="badge bg-info bg-opacity-10 text-info border border-info">@gm.MonHoc?.TenMon</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Chưa gán</span>
                                     }
                                 </td>
                                 <td>
@@ -186,6 +203,30 @@
                             <input type="email" name="Email" class="form-control" placeholder="giaovien@school.edu.vn" />
                         </div>
                     </div>
+
+                    <hr class="my-3 opacity-25" />
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-info mb-0"><i class="bi bi-book me-2"></i>III. CHUYÊN MÔN GIẢNG DẠY</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary py-0" onclick="toggleAllSubjects('create', true)">Chọn tất cả</button>
+                            <button type="button" class="btn btn-outline-secondary py-0" onclick="toggleAllSubjects('create', false)">Bỏ chọn</button>
+                        </div>
+                    </div>
+                    <div class="row g-2 p-2 bg-light rounded border">
+                        @if (monHocs != null)
+                        {
+                            foreach (var m in monHocs)
+                            {
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input create-mon-chk" type="checkbox" name="MonHocIds" value="@m.Id" id="c_mon_@m.Id">
+                                        <label class="form-check-label small fw-semibold" for="c_mon_@m.Id">@m.TenMon</label>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
@@ -237,6 +278,30 @@
                             <label class="form-label fw-bold">Email liên hệ</label>
                             <input type="email" id="edit_Email" name="Email" class="form-control" />
                         </div>
+                    </div>
+
+                    <hr class="my-3 opacity-25" />
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-info mb-0"><i class="bi bi-book me-2"></i>III. CHUYÊN MÔN GIẢNG DẠY</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary py-0" onclick="toggleAllSubjects('edit', true)">Chọn tất cả</button>
+                            <button type="button" class="btn btn-outline-secondary py-0" onclick="toggleAllSubjects('edit', false)">Bỏ chọn</button>
+                        </div>
+                    </div>
+                    <div class="row g-2 p-2 bg-light rounded border">
+                        @if (monHocs != null)
+                        {
+                            foreach (var m in monHocs)
+                            {
+                                <div class="col-6 col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input edit-mon-chk" type="checkbox" name="MonHocIds" value="@m.Id" id="e_mon_@m.Id">
+                                        <label class="form-check-label small fw-semibold" for="e_mon_@m.Id">@m.TenMon</label>
+                                    </div>
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -309,8 +374,13 @@
         const resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
         const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
+        function toggleAllSubjects(prefix, checked) {
+            document.querySelectorAll(`.${prefix}-mon-chk`).forEach(chk => chk.checked = checked);
+        }
+
         function openCreateModal() {
             document.getElementById('createForm').reset();
+            toggleAllSubjects('create', false);
             createModal.show();
         }
 
@@ -325,6 +395,12 @@
                         document.getElementById('edit_TenDangNhap').value = res.data.tenDangNhap || '';
                         document.getElementById('edit_SoDienThoai').value = res.data.soDienThoai || '';
                         document.getElementById('edit_Email').value = res.data.email || '';
+
+                        const selectedIds = res.data.monHocIds || [];
+                        document.querySelectorAll('.edit-mon-chk').forEach(chk => {
+                            chk.checked = selectedIds.includes(parseInt(chk.value));
+                        });
+
                         editModal.show();
                     } else {
                         alert(res.message);

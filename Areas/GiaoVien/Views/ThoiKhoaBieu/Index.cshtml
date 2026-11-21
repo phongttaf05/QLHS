@@ -3,6 +3,9 @@
     var banTkb = ViewBag.BanTkb as QLHS.Models.BanTkb;
     var dsKhungTiet = ViewBag.DsKhungTiet as List<QLHS.Models.KhungTietHoc>;
     var dsTietDay = ViewBag.DsTietDay as List<QLHS.Models.ThoiKhoaBieu>;
+    var dsBanNhapChoXn = ViewBag.DsBanNhapChoXn as List<QLHS.Models.BanTkbXacNhanGv>;
+    var xacNhanHienTai = ViewBag.XacNhanHienTai as QLHS.Models.BanTkbXacNhanGv;
+    string mode = ViewBag.Mode as string ?? "chinh-thuc";
 
     var thuLabels = new Dictionary<int, string>
     {
@@ -14,14 +17,16 @@
     };
 }
 
-<nav aria-label="breadcrumb" class="mb-3">
+@Html.AntiForgeryToken()
+
+<nav aria-label="breadcrumb" class="mb-3 d-print-none">
     <ol class="breadcrumb small">
         <li class="breadcrumb-item"><a asp-area="GiaoVien" asp-controller="Home" asp-action="Index" class="text-decoration-none text-success"><i class="bi bi-house-door me-1"></i>Trang chủ</a></li>
         <li class="breadcrumb-item active" aria-current="page">Thời khóa biểu giảng dạy</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3 d-print-none">
     <div>
         <h3 class="fw-bold text-success mb-1">
             <i class="bi bi-calendar3-week me-2"></i>THỜI KHÓA BIỂU GIẢNG DẠY
@@ -30,16 +35,77 @@
     </div>
     @if (banTkb != null)
     {
-        <div class="d-flex gap-2 align-items-center">
-            <span class="badge bg-success px-3 py-2 fs-6 rounded-pill">
-                <i class="bi bi-check-circle-fill me-1"></i>Bản công bố số @banTkb.SoPhienBan
-            </span>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            @if (mode == "nhap")
+            {
+                <span class="badge bg-warning text-dark px-3 py-2 fs-6 rounded-pill">
+                    <i class="bi bi-file-earmark-diff me-1"></i>Bản NHÁP số @banTkb.SoPhienBan (Chờ xác nhận)
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-success px-3 py-2 fs-6 rounded-pill">
+                    <i class="bi bi-check-circle-fill me-1"></i>Bản công bố số @banTkb.SoPhienBan
+                </span>
+            }
             <span class="badge bg-primary-subtle text-primary px-3 py-2 fs-6 rounded-pill">
-                Năm học: @(banTkb.HocKy?.NamHoc?.TenNamHoc ?? "2026-2027") (HK @(banTkb.HocKy?.SoHocKy ?? 1))
+                Năm học: @(banTkb.HocKy?.NamHoc?.TenNamHoc ?? "---") (HK @(banTkb.HocKy?.SoHocKy ?? 1))
             </span>
         </div>
     }
 </div>
+
+@if (dsBanNhapChoXn != null && dsBanNhapChoXn.Any())
+{
+    <div class="card border-info shadow-sm rounded-4 mb-4 d-print-none">
+        <div class="card-body p-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a asp-area="GiaoVien" asp-controller="ThoiKhoaBieu" asp-action="Index" asp-route-mode="chinh-thuc"
+                   class="btn btn-sm fw-semibold @(mode == "chinh-thuc" ? "btn-success" : "btn-outline-success")">
+                    <i class="bi bi-check-circle me-1"></i>TKB Chính Thức Đang Áp Dụng
+                </a>
+                @foreach (var bn in dsBanNhapChoXn)
+                {
+                    bool isActiveDraft = mode == "nhap" && xacNhanHienTai?.BanTkbId == bn.BanTkbId;
+                    <a asp-area="GiaoVien" asp-controller="ThoiKhoaBieu" asp-action="Index" asp-route-mode="nhap" asp-route-draftId="@bn.BanTkbId"
+                       class="btn btn-sm fw-semibold @(isActiveDraft ? "btn-warning text-dark" : "btn-outline-warning text-dark")">
+                        <i class="bi bi-bell-fill me-1"></i>Bản Nháp [v@(bn.BanTkb.SoPhienBan)]
+                        @if (bn.TrangThai == "DA_XAC_NHAN")
+                        {
+                            <span class="badge bg-success ms-1">Đã đồng ý</span>
+                        }
+                        else if (bn.TrangThai == "CAN_DIEU_CHINH")
+                        {
+                            <span class="badge bg-danger ms-1">Đã yêu cầu sửa</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger ms-1">Cần xác nhận</span>
+                        }
+                    </a>
+                }
+            </div>
+
+            @if (mode == "nhap" && xacNhanHienTai != null)
+            {
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-success fw-bold" onclick="phanHoiBanNhap(@xacNhanHienTai.BanTkbId, 'DA_XAC_NHAN')">
+                        <i class="bi bi-check-lg me-1"></i>Đồng ý lịch nháp
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger fw-bold" onclick="yeuCauSuaBanNhap(@xacNhanHienTai.BanTkbId)">
+                        <i class="bi bi-pencil-square me-1"></i>Yêu cầu sửa đổi
+                    </button>
+                </div>
+            }
+        </div>
+        @if (mode == "nhap" && xacNhanHienTai != null && !string.IsNullOrWhiteSpace(xacNhanHienTai.YKien))
+        {
+            <div class="card-footer bg-danger bg-opacity-10 small text-danger">
+                <strong>Ý kiến Thầy/Cô đã gửi:</strong> @xacNhanHienTai.YKien
+            </div>
+        }
+    </div>
+}
 
 @if (ViewBag.ErrorMessage != null)
 {
@@ -51,12 +117,23 @@ else if (ViewBag.ThongBao != null)
 }
 else if (banTkb != null && dsKhungTiet != null)
 {
+    <div class="d-none d-print-block text-center mb-3">
+        <h4 class="fw-bold text-uppercase mb-1">THỜI KHÓA BIỂU GIẢNG DẠY</h4>
+        <div class="small">
+            Giáo viên: <strong>@ViewBag.TenGiaoVien</strong> |
+            Năm học: <strong>@(banTkb.HocKy?.NamHoc?.TenNamHoc ?? "---")</strong> (HK @(banTkb.HocKy?.SoHocKy ?? 1)) |
+            Bản công bố số: <strong>@banTkb.SoPhienBan</strong> |
+            Áp dụng: <strong>@(banTkb.TuNgay?.ToString("dd/MM/yyyy") ?? "---")</strong> – <strong>@(banTkb.DenNgay?.ToString("dd/MM/yyyy") ?? "Hết học kỳ")</strong> |
+            Tổng số tiết: <strong>@ViewBag.TongSoTiet tiết/tuần</strong>
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center d-print-none">
             <h5 class="fw-bold mb-0 text-dark">
                 <i class="bi bi-grid-3x3-gap-fill text-success me-2"></i>LỊCH DẠY CHI TIẾT THEO TUẦN (TỔNG CỘNG: @ViewBag.TongSoTiet TIẾT)
             </h5>
-            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+            <button class="btn btn-sm btn-outline-secondary d-print-none" onclick="window.print()">
                 <i class="bi bi-printer me-1"></i>In lịch dạy
             </button>
         </div>
@@ -87,16 +164,24 @@ else if (banTkb != null && dsKhungTiet != null)
                                 {
                                     var khung = dsKhungTiet.FirstOrDefault(k => k.ThuTrongTuan == thu && k.BuoiHoc == "SANG" && k.TietHoc == t);
                                     var tietDay = khung != null ? dsTietDay?.FirstOrDefault(x => x.KhungTietId == khung.Id) : null;
+                                    bool isChaoCo = (thu == 2 && t == 1);
 
                                     if (tietDay != null)
                                     {
-                                        <td class="p-2" style="background-color: #ecfdf5;">
-                                            <div class="p-2 rounded-3 border border-success bg-white shadow-sm">
-                                                <div class="fw-bold text-success fs-6">
-                                                    @(tietDay.PhanCong?.MonHoc?.TenMon ?? "Môn học")
+                                        <td class="p-2" style="background-color: @(isChaoCo ? "#fef2f2" : "#ecfdf5");">
+                                            <div class="p-2 rounded-3 border @(isChaoCo ? "border-danger" : "border-success") bg-white shadow-sm">
+                                                <div class="fw-bold @(isChaoCo ? "text-danger" : "text-success") fs-6">
+                                                    @if (isChaoCo)
+                                                    {
+                                                        <i class="bi bi-flag-fill me-1"></i><span>CHÀO CỜ</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        @(tietDay.MonHoc?.TenMon ?? tietDay.PhanCong?.MonHoc?.TenMon ?? "Môn học")
+                                                    }
                                                 </div>
-                                                <div class="badge bg-primary mt-1">
-                                                    Lớp @(tietDay.PhanCong?.LopHoc?.TenLop ?? "")
+                                                <div class="badge @(isChaoCo ? "bg-danger" : "bg-primary") mt-1">
+                                                    Lớp @(tietDay.LopHoc?.TenLop ?? tietDay.PhanCong?.LopHoc?.TenLop ?? "")
                                                 </div>
                                                 <div class="text-muted small mt-1" style="font-size: 0.75rem;">
                                                     @khung?.GioBatDau?.ToString(@"hh\:mm") - @khung?.GioKetThuc?.ToString(@"hh\:mm")
@@ -128,16 +213,24 @@ else if (banTkb != null && dsKhungTiet != null)
                                 {
                                     var khung = dsKhungTiet.FirstOrDefault(k => k.ThuTrongTuan == thu && k.BuoiHoc == "CHIEU" && k.TietHoc == t);
                                     var tietDay = khung != null ? dsTietDay?.FirstOrDefault(x => x.KhungTietId == khung.Id) : null;
+                                    bool isSinhHoat = (thu == 6 && t == 3);
 
                                     if (tietDay != null)
                                     {
                                         <td class="p-2" style="background-color: #ecfdf5;">
                                             <div class="p-2 rounded-3 border border-success bg-white shadow-sm">
                                                 <div class="fw-bold text-success fs-6">
-                                                    @(tietDay.PhanCong?.MonHoc?.TenMon ?? "Môn học")
+                                                    @if (isSinhHoat)
+                                                    {
+                                                        <i class="bi bi-people-fill me-1"></i><span>SINH HOẠT LỚP</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        @(tietDay.MonHoc?.TenMon ?? tietDay.PhanCong?.MonHoc?.TenMon ?? "Môn học")
+                                                    }
                                                 </div>
-                                                <div class="badge bg-primary mt-1">
-                                                    Lớp @(tietDay.PhanCong?.LopHoc?.TenLop ?? "")
+                                                <div class="badge @(isSinhHoat ? "bg-success" : "bg-primary") mt-1">
+                                                    Lớp @(tietDay.LopHoc?.TenLop ?? tietDay.PhanCong?.LopHoc?.TenLop ?? "")
                                                 </div>
                                                 <div class="text-muted small mt-1" style="font-size: 0.75rem;">
                                                     @khung?.GioBatDau?.ToString(@"hh\:mm") - @khung?.GioKetThuc?.ToString(@"hh\:mm")
@@ -159,4 +252,43 @@ else if (banTkb != null && dsKhungTiet != null)
             </div>
         </div>
     </div>
+}
+
+@section Scripts {
+<script>
+function getAntiForgeryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]').value;
+}
+
+function phanHoiBanNhap(banTkbId, trangThai, yKien = '') {
+    const formData = new URLSearchParams();
+    formData.append('banTkbId', banTkbId);
+    formData.append('trangThai', trangThai);
+    if (yKien) formData.append('yKien', yKien);
+
+    fetch('/GiaoVien/ThoiKhoaBieu/PhanHoiBanNhap', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: formData.toString()
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+function yeuCauSuaBanNhap(banTkbId) {
+    const lyDo = prompt('Nhập lý do / yêu cầu sửa đổi lịch nháp gửi tới Ban Giám Hiệu:');
+    if (lyDo === null) return;
+    if (!lyDo.trim()) {
+        alert('Vui lòng nhập nội dung yêu cầu sửa đổi!');
+        return;
+    }
+    phanHoiBanNhap(banTkbId, 'CAN_DIEU_CHINH', lyDo.trim());
+}
+</script>
 }

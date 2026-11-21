@@ -7,6 +7,9 @@
     int selectedLopId = ViewBag.SelectedLopId ?? 0;
     int selectedMonId = ViewBag.SelectedMonId ?? 0;
     int selectedHocKy = ViewBag.SelectedHocKy ?? 1;
+    int soHsDaNhap = ViewBag.SoHsDaNhap ?? 0;
+    int tongHs = dsHocSinh?.Count ?? 0;
+    bool daChotDiem = ViewBag.DaChotDiem ?? false;
 }
 
 @Html.AntiForgeryToken()
@@ -23,9 +26,39 @@
         <h3 class="fw-bold text-success mb-1">
             <i class="bi bi-pencil-square me-2"></i>ĐÁNH GIÁ MÔN HỌC (THÔNG TƯ 27/2020/TT-BGDĐT)
         </h3>
-        <p class="text-muted mb-0">Nhập mức đánh giá (T, H, C), điểm kiểm tra định kỳ và nhận xét quá trình học tập của học sinh.</p>
+        <p class="text-muted mb-0">Nhập mức đánh giá (T, H, C), điểm kiểm tra định kỳ, nhận xét và chốt sổ điểm học kỳ.</p>
     </div>
+    @if (selectedLopId > 0 && selectedMonId > 0 && tongHs > 0)
+    {
+        <div class="d-flex align-items-center gap-2">
+            @if (daChotDiem)
+            {
+                <span class="badge bg-danger px-3 py-2 fs-6 rounded-pill shadow-sm">
+                    <i class="bi bi-lock-fill me-1"></i>ĐÃ CHỐT SỔ ĐIỂM
+                </span>
+            }
+            else
+            {
+                <span class="badge bg-info-subtle text-info border border-info px-3 py-2 rounded-pill">
+                    Đã lưu: @soHsDaNhap / @tongHs HS
+                </span>
+                <button type="button" class="btn btn-danger fw-bold shadow-sm" onclick="chotDiem()">
+                    <i class="bi bi-lock-fill me-1"></i>Chốt Điểm (Khóa Sổ)
+                </button>
+            }
+        </div>
+    }
 </div>
+
+@if (daChotDiem)
+{
+    <div class="alert alert-warning border-0 rounded-4 shadow-sm d-flex align-items-center gap-2 mb-4">
+        <i class="bi bi-shield-lock-fill fs-5 text-danger"></i>
+        <div>
+            <strong>Bảng điểm đã được chốt sổ!</strong> Toàn bộ điểm và nhận xét của lớp – môn này trong Học kỳ @selectedHocKy đã được khóa cố định, không thể chỉnh sửa.
+        </div>
+    </div>
+}
 
 <!-- THANH LỌC LỚP, MÔN, HỌC KỲ -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -66,9 +99,9 @@
 
 <!-- BẢNG ĐÁNH GIÁ MÔN HỌC -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 class="fw-bold mb-0 text-dark">
-            <i class="bi bi-card-checklist text-primary me-2"></i>BẢNG ĐÁNH GIÁ HỌC SINH (@(dsHocSinh?.Count ?? 0) học sinh)
+            <i class="bi bi-card-checklist text-primary me-2"></i>BẢNG ĐÁNH GIÁ HỌC SINH (@tongHs học sinh)
         </h5>
         <span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">
             Mức: T (Hoàn thành tốt) | H (Hoàn thành) | C (Chưa hoàn thành)
@@ -86,7 +119,7 @@
                         <th style="width: 110px;">Điểm CK</th>
                         <th style="width: 180px;">Mức đánh giá</th>
                         <th>Nhận xét của Giáo viên</th>
-                        <th class="text-end pe-4" style="width: 100px;">Lưu</th>
+                        <th class="text-end pe-4" style="width: 110px;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -96,30 +129,42 @@
                         foreach (var hs in dsHocSinh)
                         {
                             var dg = (danhGiaMap != null && danhGiaMap.ContainsKey(hs.Id)) ? danhGiaMap[hs.Id] : null;
-                            <tr id="row-dg-@hs.Id">
+                            bool isLocked = daChotDiem || (dg?.DaKhoaSo == true);
+
+                            <tr id="row-dg-@hs.Id" class="@(isLocked ? "table-light" : "")">
                                 <td class="ps-4 text-muted">@(stt++)</td>
                                 <td><code>@hs.MaHocSinh</code></td>
                                 <td><strong class="text-dark">@hs.HoTen</strong></td>
                                 <td>
-                                    <input type="number" min="0" max="10" step="1" class="form-control form-control-sm text-center" id="gk-@hs.Id" value="@(dg?.DiemGiuaKy)" placeholder="-" />
+                                    <input type="number" min="0" max="10" step="1" class="form-control form-control-sm text-center"
+                                           id="gk-@hs.Id" value="@(dg?.DiemGiuaKy)" placeholder="-" disabled="@isLocked" />
                                 </td>
                                 <td>
-                                    <input type="number" min="0" max="10" step="1" class="form-control form-control-sm text-center fw-bold text-primary" id="ck-@hs.Id" value="@(dg?.DiemCuoiKy)" placeholder="-" />
+                                    <input type="number" min="0" max="10" step="1" class="form-control form-control-sm text-center fw-bold text-primary"
+                                           id="ck-@hs.Id" value="@(dg?.DiemCuoiKy)" placeholder="-" disabled="@isLocked" />
                                 </td>
                                 <td>
-                                    <select class="form-select form-select-sm" id="muc-@hs.Id">
+                                    <select class="form-select form-select-sm" id="muc-@hs.Id" disabled="@isLocked">
                                         <option value="Hoan_thanh_tot" selected="@(dg?.MucDanhGia == "Hoan_thanh_tot" || dg?.MucDanhGia == "T")">T (Tốt)</option>
                                         <option value="Hoan_thanh" selected="@(dg?.MucDanhGia == "Hoan_thanh" || dg?.MucDanhGia == "H" || dg == null)">H (Hoàn thành)</option>
                                         <option value="Chua_hoan_thanh" selected="@(dg?.MucDanhGia == "Chua_hoan_thanh" || dg?.MucDanhGia == "C")">C (Chưa HT)</option>
                                     </select>
                                 </td>
                                 <td>
-                                    <input type="text" class="form-control form-control-sm" id="nx-@hs.Id" value="@(dg?.NhanXetGiaoVien)" placeholder="Nhập nhận xét quá trình học tập..." />
+                                    <input type="text" class="form-control form-control-sm" id="nx-@hs.Id"
+                                           value="@(dg?.NhanXetGiaoVien)" placeholder="Nhập nhận xét quá trình học tập..." disabled="@isLocked" />
                                 </td>
                                 <td class="text-end pe-4">
-                                    <button type="button" class="btn btn-sm btn-success fw-bold" onclick="luuDanhGia(@hs.Id)">
-                                        <i class="bi bi-floppy"></i>
-                                    </button>
+                                    @if (isLocked)
+                                    {
+                                        <span class="badge bg-secondary"><i class="bi bi-lock-fill me-1"></i>Đã khóa</span>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-success fw-bold" onclick="luuDanhGia(@hs.Id)" title="Lưu đánh giá">
+                                            <i class="bi bi-floppy me-1"></i>Lưu
+                                        </button>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -139,9 +184,28 @@
     </div>
 </div>
 
+<!-- TOAST THÔNG BÁO -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="dgToast" class="toast align-items-center text-bg-success border-0 shadow" role="alert">
+        <div class="d-flex">
+            <div class="toast-body fw-semibold" id="dgToastMsg">Thành công!</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
 <script>
 function getAntiForgeryToken() {
     return document.querySelector('input[name="__RequestVerificationToken"]').value;
+}
+
+function showDgToast(msg, isError = false) {
+    const el = document.getElementById('dgToast');
+    document.getElementById('dgToastMsg').textContent = msg;
+    el.classList.remove('text-bg-success', 'text-bg-danger');
+    el.classList.add(isError ? 'text-bg-danger' : 'text-bg-success');
+    new bootstrap.Toast(el, { delay: 2600 }).show();
 }
 
 function onLopMonChange(select) {
@@ -152,20 +216,17 @@ function onLopMonChange(select) {
 }
 
 function luuDanhGia(hocSinhId) {
-    const lopId = @selectedLopId;
-    const monId = @selectedMonId;
-    const hk = @selectedHocKy;
+    const formData = new URLSearchParams();
+    formData.append('hocSinhId', hocSinhId);
+    formData.append('lopHocId', @selectedLopId);
+    formData.append('monHocId', @selectedMonId);
+    formData.append('hocKy', @selectedHocKy);
 
     const gk = document.getElementById('gk-' + hocSinhId).value;
     const ck = document.getElementById('ck-' + hocSinhId).value;
     const muc = document.getElementById('muc-' + hocSinhId).value;
     const nx = document.getElementById('nx-' + hocSinhId).value;
 
-    const formData = new URLSearchParams();
-    formData.append('hocSinhId', hocSinhId);
-    formData.append('lopHocId', lopId);
-    formData.append('monHocId', monId);
-    formData.append('hocKy', hk);
     if (gk) formData.append('diemGiuaKy', gk);
     if (ck) formData.append('diemCuoiKy', ck);
     formData.append('mucDanhGia', muc);
@@ -181,7 +242,37 @@ function luuDanhGia(hocSinhId) {
     })
     .then(res => res.json())
     .then(data => {
-        alert(data.message);
-    });
+        showDgToast(data.message, !data.success);
+    })
+    .catch(() => showDgToast('Lỗi kết nối máy chủ!', true));
+}
+
+function chotDiem() {
+    if (!confirm('Bạn có chắc chắn muốn CHỐT SỔ ĐIỂM cho lớp và môn học này? Sau khi chốt, bảng điểm sẽ bị khóa và không thể chỉnh sửa!')) {
+        return;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('lopHocId', @selectedLopId);
+    formData.append('monHocId', @selectedMonId);
+    formData.append('hocKy', @selectedHocKy);
+
+    fetch('/GiaoVien/DanhGiaMonHoc/ChotDiem', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: formData.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        showDgToast(data.message, !data.success);
+        if (data.success) {
+            setTimeout(() => location.reload(), 650);
+        }
+    })
+    .catch(() => showDgToast('Lỗi kết nối máy chủ!', true));
 }
 </script>
+}

@@ -23,6 +23,8 @@ namespace QLHS.Areas.Admin.Controllers
             var query = _context.GiaoViens
                 .Include(g => g.TaiKhoan)
                 .Include(g => g.LopHocs)
+                .Include(g => g.GiaoVienMonHocs)
+                    .ThenInclude(gm => gm.MonHoc)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -31,11 +33,13 @@ namespace QLHS.Areas.Admin.Controllers
                 query = query.Where(g => g.HoTen.ToLower().Contains(search) ||
                                          (g.Cccd != null && g.Cccd.ToLower().Contains(search)) ||
                                          (g.TaiKhoan != null && g.TaiKhoan.TenDangNhap!.ToLower().Contains(search)) ||
-                                         (g.TaiKhoan != null && g.TaiKhoan.SoDienThoai != null && g.TaiKhoan.SoDienThoai.Contains(search)));
+                                         (g.TaiKhoan != null && g.TaiKhoan.SoDienThoai != null && g.TaiKhoan.SoDienThoai.Contains(search)) ||
+                                         g.GiaoVienMonHocs.Any(gm => gm.MonHoc.TenMon != null && gm.MonHoc.TenMon.ToLower().Contains(search)));
             }
 
             var listGiaoVien = await query.OrderBy(g => g.HoTen).ToListAsync();
             ViewBag.CurrentSearch = search;
+            ViewBag.MonHocs = await _context.MonHocs.OrderBy(m => m.TenMon).ToListAsync();
 
             return View(listGiaoVien);
         }
@@ -46,6 +50,7 @@ namespace QLHS.Areas.Admin.Controllers
         {
             var gv = await _context.GiaoViens
                 .Include(g => g.TaiKhoan)
+                .Include(g => g.GiaoVienMonHocs)
                 .FirstOrDefaultAsync(g => g.Id == id);
 
             if (gv == null)
@@ -63,7 +68,8 @@ namespace QLHS.Areas.Admin.Controllers
                     gv.Cccd,
                     TenDangNhap = gv.TaiKhoan?.TenDangNhap ?? "",
                     SoDienThoai = gv.TaiKhoan?.SoDienThoai ?? "",
-                    Email = gv.TaiKhoan?.Email ?? ""
+                    Email = gv.TaiKhoan?.Email ?? "",
+                    MonHocIds = gv.GiaoVienMonHocs.Select(x => x.MonHocId).ToList()
                 }
             });
         }
@@ -126,6 +132,20 @@ namespace QLHS.Areas.Admin.Controllers
                 _context.GiaoViens.Add(giaoVien);
                 await _context.SaveChangesAsync();
 
+                // Lưu danh sách chuyên môn giảng dạy
+                if (model.MonHocIds != null && model.MonHocIds.Any())
+                {
+                    foreach (var monId in model.MonHocIds.Distinct())
+                    {
+                        _context.GiaoVienMonHocs.Add(new GiaoVienMonHoc
+                        {
+                            GiaoVienId = giaoVien.Id,
+                            MonHocId = monId
+                        });
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 await transaction.CommitAsync();
 
                 return Json(new { success = true, message = $"Tạo giáo viên '{model.HoTen}' thành công với mật khẩu mặc định 123456!" });
@@ -144,6 +164,7 @@ namespace QLHS.Areas.Admin.Controllers
         {
             var giaoVien = await _context.GiaoViens
                 .Include(g => g.TaiKhoan)
+                .Include(g => g.GiaoVienMonHocs)
                 .FirstOrDefaultAsync(g => g.Id == model.Id);
 
             if (giaoVien == null)
@@ -207,6 +228,23 @@ namespace QLHS.Areas.Admin.Controllers
                 giaoVien.HoTen = model.HoTen;
                 giaoVien.Cccd = model.Cccd;
                 _context.GiaoViens.Update(giaoVien);
+
+                // Đồng bộ danh sách chuyên môn giảng dạy
+                if (giaoVien.GiaoVienMonHocs.Any())
+                {
+                    _context.GiaoVienMonHocs.RemoveRange(giaoVien.GiaoVienMonHocs);
+                }
+                if (model.MonHocIds != null && model.MonHocIds.Any())
+                {
+                    foreach (var monId in model.MonHocIds.Distinct())
+                    {
+                        _context.GiaoVienMonHocs.Add(new GiaoVienMonHoc
+                        {
+                            GiaoVienId = giaoVien.Id,
+                            MonHocId = monId
+                        });
+                    }
+                }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();

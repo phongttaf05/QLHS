@@ -30,7 +30,7 @@
 
 @Html.AntiForgeryToken()
 
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3 d-print-none">
     <div>
         <h3 class="fw-bold text-primary mb-1">
             <i class="bi bi-calendar3-week me-2"></i>CẤU HÌNH & XẾP THỜI KHÓA BIỂU TỰ ĐỘNG
@@ -55,6 +55,12 @@
             <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="triggerAutoSchedule(@banTkbHienTai.Id)">
                 <i class="bi bi-magic me-1"></i>4. Chạy Xếp OR-Tools
             </button>
+            @if (banTkbHienTai.TrangThai == "LICH_NHAP" || banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN")
+            {
+                <button type="button" class="btn btn-outline-info fw-bold shadow-sm" onclick="guiGvXacNhan(@banTkbHienTai.Id)">
+                    <i class="bi bi-send-check me-1"></i>4b. Gửi GV Xác Nhận Nháp
+                </button>
+            }
             <button type="button" class="btn btn-warning fw-bold text-dark shadow-sm" onclick="duyetBanTkb(@banTkbHienTai.Id)">
                 <i class="bi bi-check2-all me-1"></i>5. Duyệt Lịch
             </button>
@@ -77,7 +83,7 @@
                         foreach (var b in dsBanTkb)
                         {
                             <option value="@b.Id" selected="@(b.Id == selectedBanTkbId)">
-                                [v@b.SoPhienBan] @(b.HocKy?.NamHoc?.TenNamHoc) - Học kỳ @b.HocKy?.SoHocKy (@b.TrangThai)
+                                [v@(b.SoPhienBan)] @(b.HocKy?.NamHoc?.TenNamHoc) - Học kỳ @b.HocKy?.SoHocKy (@b.TrangThai)
                             </option>
                         }
                     }
@@ -143,8 +149,8 @@
 
 @if (banTkbHienTai != null)
 {
-    <!-- THÔNG TIN TRẠNG THÁI BẢN TKB -->
-    <div class="alert alert-info border-0 rounded-3 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <!-- THÔNG TIN TRẠNG THÁI BẢN TKB (CHỈ HIỆN TRÊN MÀN HÌNH) -->
+    <div class="alert alert-info border-0 rounded-3 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 d-print-none">
         <div>
             <strong>Trạng thái Bản TKB:</strong> 
             @switch (banTkbHienTai.TrangThai)
@@ -160,6 +166,9 @@
                     break;
                 case "LICH_NHAP":
                     <span class="badge bg-success fs-6 ms-1">3. LỊCH NHÁP (CHO PHÉP KÉO THẢ)</span>
+                    break;
+                case "CHO_GV_XAC_NHAN":
+                    <span class="badge bg-info text-dark fs-6 ms-1">3B. CHỜ GIÁO VIÊN XÁC NHẬN NHÁP</span>
                     break;
                 case "DA_DUYET":
                     <span class="badge bg-success fs-6 ms-1">4. ĐÃ DUYỆT</span>
@@ -186,14 +195,14 @@
         }
     </div>
 
-    <!-- KHU VỰC KÉO THẢ TINH CHỈNH LỊCH NHÁP (NẾU Ở TRẠNG THÁI LICH_NHAP) -->
-    @if (banTkbHienTai.TrangThai == "LICH_NHAP")
+    <!-- KHU VỰC KÉO THẢ TINH CHỈNH LỊCH NHÁP -->
+    @if (banTkbHienTai.TrangThai == "LICH_NHAP" || banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN")
     {
         <div class="card border-warning shadow-sm mb-4 bg-warning bg-opacity-10 d-print-none">
             <div class="card-body p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <h6 class="fw-bold text-dark mb-1"><i class="bi bi-arrows-move me-2 text-warning"></i>CHẾ ĐỘ TINH CHỈNH LỊCH NHÁP</h6>
-                    <small class="text-muted">Kéo thả các tiết giữa các ô, hoặc thả xuống thùng "CHƯA XẾP". Chào cờ & Sinh hoạt lớp bị khóa cố định.</small>
+                    <small class="text-muted">Kéo thả các tiết giữa các ô, hoặc gửi bản nháp này cho Giáo viên xem và xác nhận trước khi duyệt.</small>
                 </div>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="reSolveRemaining(@banTkbHienTai.Id)">
@@ -204,9 +213,88 @@
         </div>
     }
 
+    var dsXacNhanGv = ViewBag.DsXacNhanGv as List<QLHS.Models.BanTkbXacNhanGv>;
+    @if (dsXacNhanGv != null && dsXacNhanGv.Any())
+    {
+        int soDongY = dsXacNhanGv.Count(x => x.TrangThai == "DA_XAC_NHAN");
+        int soYeuCauSua = dsXacNhanGv.Count(x => x.TrangThai == "CAN_DIEU_CHINH");
+        int soCho = dsXacNhanGv.Count(x => x.TrangThai == "CHO_XAC_NHAN");
+        <div class="card border-0 shadow-sm rounded-3 mb-4 d-print-none">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="fw-bold mb-0 text-primary">
+                    <i class="bi bi-people-fill me-2"></i>TRẠNG THÁI GIÁO VIÊN XÁC NHẬN BẢN NHÁP [v@(banTkbHienTai.SoPhienBan)]
+                </h6>
+                <div class="d-flex gap-2 small">
+                    <span class="badge bg-success">Đồng ý: @soDongY/@dsXacNhanGv.Count</span>
+                    <span class="badge bg-warning text-dark">Chờ phản hồi: @soCho</span>
+                    <span class="badge bg-danger">Yêu cầu sửa: @soYeuCauSua</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Giáo Viên</th>
+                                <th class="text-center">Trạng Thái</th>
+                                <th>Ý Kiến / Yêu Cầu Sửa Đổi</th>
+                                <th class="pe-3 text-end">Thời Gian</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var xn in dsXacNhanGv)
+                            {
+                                <tr class="@(xn.TrangThai == "CAN_DIEU_CHINH" ? "table-danger bg-opacity-10" : "")">
+                                    <td class="ps-3 fw-semibold">@(xn.GiaoVien?.HoTen ?? "---")</td>
+                                    <td class="text-center">
+                                        @if (xn.TrangThai == "DA_XAC_NHAN")
+                                        {
+                                            <span class="badge bg-success">Đã đồng ý</span>
+                                        }
+                                        else if (xn.TrangThai == "CAN_DIEU_CHINH")
+                                        {
+                                            <span class="badge bg-danger">Yêu cầu sửa</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Chờ xác nhận</span>
+                                        }
+                                    </td>
+                                    <td class="small @(xn.TrangThai == "CAN_DIEU_CHINH" ? "text-danger fw-semibold" : "text-muted")">
+                                        @(string.IsNullOrWhiteSpace(xn.YKien) ? "---" : xn.YKien)
+                                    </td>
+                                    <td class="pe-3 text-end small text-muted">@(xn.NgayPhanHoi?.ToString("HH:mm dd/MM") ?? "---")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- TIÊU ĐỀ IN ẤN (CHỈ HIỆN KHI IN) -->
+    <div class="d-none d-print-block text-center mb-3">
+        <h4 class="fw-bold text-uppercase mb-1">
+            @(viewType == "teacher"
+                ? $"THỜI KHÓA BIỂU GIẢNG DẠY - {(giaoVienHienTai?.HoTen ?? "---")}"
+                : $"THỜI KHÓA BIỂU LỚP {(lopHocHienTai?.TenLop ?? "---")}")
+        </h4>
+        <div class="small">
+            Năm học: <strong>@(banTkbHienTai.HocKy?.NamHoc?.TenNamHoc ?? "---")</strong> |
+            Học kỳ: <strong>@(banTkbHienTai.HocKy?.SoHocKy)</strong> |
+            Bản TKB số: <strong>@banTkbHienTai.SoPhienBan</strong> |
+            Áp dụng: <strong>@(banTkbHienTai.TuNgay?.ToString("dd/MM/yyyy") ?? "---")</strong> – <strong>@(banTkbHienTai.DenNgay?.ToString("dd/MM/yyyy") ?? "Hết học kỳ")</strong>
+            @if (viewType != "teacher")
+            {
+                <span> | GVCN: <strong>@(lopHocHienTai?.GiaoVienChuNhiem?.HoTen ?? "Chưa phân công")</strong></span>
+            }
+        </div>
+    </div>
+
     <!-- BẢNG LƯỚI THỜI KHÓA BIỂU -->
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center d-print-none">
             <h5 class="fw-bold mb-0 text-dark">
                 @if (viewType == "teacher")
                 {
@@ -1071,6 +1159,23 @@ function reSolveRemaining(banTkbId) {
         body: 'banTkbId=' + banTkbId
     })
     .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+function guiGvXacNhan(banTkbId) {
+    if (!confirm('Gửi Bản TKB nháp này tới tất cả giáo viên có lịch dạy để họ xem, xác nhận hoặc yêu cầu sửa đổi? (TKB chính thức đang công bố vẫn không bị ảnh hưởng)')) return;
+    fetch('/Admin/ThoiKhoaBieu/GuiGvXacNhan', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: 'banTkbId=' + banTkbId
+    })
+    .then(r => r.json())
     .then(data => {
         alert(data.message);
         if (data.success) location.reload();

@@ -43,4 +43,10 @@ public partial class GiaoVien
 
     [InverseProperty("GiaoVien")]
     public virtual ICollection<ThoiKhoaBieu> ThoiKhoaBieus { get; set; } = new List<ThoiKhoaBieu>();
+
+    [InverseProperty("GiaoVien")]
+    public virtual ICollection<GiaoVienMonHoc> GiaoVienMonHocs { get; set; } = new List<GiaoVienMonHoc>();
+
+    [InverseProperty("GiaoVien")]
+    public virtual ICollection<BanTkbXacNhanGv> BanTkbXacNhanGvs { get; set; } = new List<BanTkbXacNhanGv>();
 }
