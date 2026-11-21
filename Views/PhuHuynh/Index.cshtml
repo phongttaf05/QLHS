@@ -1,0 +1,176 @@
+@model IEnumerable<QLHS.Models.HocSinh>
+
+@{
+    ViewData["Title"] = "Góc Phụ Huynh - Tổng Quan";
+    var studentCount = Model != null ? Model.Count() : 0;
+}
+
+<!-- 1. BANNER ĐƯỢC SỬA MÀU NỀN & CHỮ RÕ RÀNG -->
+<div class="rounded-4 p-4 text-white mb-4 shadow-sm" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%) !important;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <span class="badge bg-white text-primary fw-bold px-3 py-2 mb-2 rounded-pill">
+                <i class="bi bi-person-heart text-danger me-1"></i> CỔNG PHỤ HUYNH
+            </span>
+            <h2 class="fw-bold mb-1 text-white">Bảng Theo Dõi Học Tập</h2>
+            <p class="mb-0 text-white-50">Xin chào phụ huynh <strong>@ViewBag.HoTenPhuHuynh</strong>. Dưới đây là thông tin học tập của các con.</p>
+        </div>
+        <div>
+            <span class="badge bg-white bg-opacity-25 text-white fs-6 px-3 py-2 border border-white border-opacity-25 rounded-pill">
+                <i class="bi bi-calendar3 me-1"></i> Năm học 2026 - 2027
+            </span>
+        </div>
+    </div>
+</div>
+
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-warning border-0 shadow-sm rounded-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>@ViewBag.ErrorMessage
+    </div>
+}
+
+<!-- 2. DANH SÁCH THẺ THÔNG TIN TỰ ĐỘNG CÂN BẰNG BỐ CỤC -->
+@if (Model != null && Model.Any())
+{
+    <!-- Tự động giãn full-width nếu chỉ có 1 con, chia 2 cột nếu có từ 2 con trở lên -->
+    <div class="row g-4">
+        @foreach (var student in Model)
+        {
+            var lop = student.LopHocHienTai;
+            var gvcn = lop?.GiaoVienChuNhiem;
+            var diemDanhGanhNhat = student.DiemDanhs?.OrderByDescending(d => d.NgayDiemDanh).FirstOrDefault();
+
+            <div class="@(studentCount == 1 ? "col-12" : "col-lg-6")">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4">
+                        
+                        <!-- HEADER HỌC SINH -->
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="avatar-circle bg-primary text-white fw-bold rounded-circle d-flex align-items-center justify-content-center fs-3 shadow-sm" style="width: 58px; height: 58px;">
+                                    @(string.IsNullOrEmpty(student.HoTen) ? "H" : student.HoTen.Substring(student.HoTen.LastIndexOf(' ') + 1, 1))
+                                </div>
+                                <div>
+                                    <h4 class="fw-bold text-dark mb-0">@student.HoTen</h4>
+                                    <small class="text-muted">Mã HS: <strong class="text-primary">@student.MaHocSinh</strong> | Giới tính: @student.GioiTinh</small>
+                                </div>
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle-fill me-1"></i>Đang học
+                            </span>
+                        </div>
+
+                        <hr class="text-secondary opacity-25 my-3" />
+
+                        <!-- THÔNG TIN LỚP & CHUYÊN CẦN -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3 h-100">
+                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-open me-1 text-primary"></i>Lớp Học</small>
+                                    <span class="fw-bold text-primary fs-5">@(lop != null ? "Lớp " + lop.TenLop : "Chưa xếp lớp")</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 bg-light rounded-3 h-100">
+                                    <small class="text-muted d-block mb-1"><i class="bi bi-layers me-1 text-info"></i>Khối Lớp</small>
+                                    <span class="fw-bold text-dark fs-5">@(lop?.KhoiLop != null ? "Khối " + lop.KhoiLop.SoKhoi : "---")</span>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="text-muted d-block"><i class="bi bi-person-badge me-1 text-success"></i>Giáo Viên Chủ Nhiệm</small>
+                                        <span class="fw-bold text-dark fs-6">@(gvcn != null ? gvcn.HoTen : "Chưa phân công")</span>
+                                    </div>
+                                    <span class="badge bg-white text-secondary border">GVCN</span>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="p-3 border rounded-3 d-flex justify-content-between align-items-center bg-white">
+                                    <small class="text-muted fw-bold"><i class="bi bi-calendar-check me-1 text-warning"></i>Điểm danh gần nhất:</small>
+                                    @if (diemDanhGanhNhat != null && diemDanhGanhNhat.NgayDiemDanh.HasValue)
+                                    {
+                                        var ngayFormatted = diemDanhGanhNhat.NgayDiemDanh.Value.ToString("dd/MM");
+                                        @switch (diemDanhGanhNhat.TrangThai)
+                                        {
+                                            case "co_mat":
+                                                <span class="badge bg-success px-3 py-2"><i class="bi bi-check-circle me-1"></i>Có mặt (@ngayFormatted)</span>
+                                                break;
+                                            case "nghi_co_phep":
+                                                <span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-envelope-paper me-1"></i>Nghỉ có phép (@ngayFormatted)</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-danger px-3 py-2"><i class="bi bi-x-circle me-1"></i>Nghỉ không phép (@ngayFormatted)</span>
+                                                break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Chưa có dữ liệu</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. CÁC NÚT BẤM CHUYỂN TRANG TRA CỨU ĐÃ ĐƯỢC BỔ SUNG ĐẦY ĐỦ -->
+                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-grid-fill text-primary me-2"></i>Lối Tắt Chức Năng:</h6>
+                        
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <a asp-area="" asp-controller="PhuHuynh" asp-action="BangDiem" asp-route-studentId="@student.Id" 
+                                   class="btn btn-outline-primary fw-bold text-start p-3 rounded-3 d-flex align-items-center justify-content-between w-100 h-100">
+                                    <div>
+                                        <div class="fw-bold"><i class="bi bi-journal-check me-2"></i>Bảng Điểm Môn Học</div>
+                                        <small class="text-muted fw-normal d-block mt-1">Thông tư 27/2020/TT-BGDĐT</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </div>
+
+                            <div class="col-md-6">
+                                <a asp-area="" asp-controller="PhuHuynh" asp-action="NangLucPhamChat" asp-route-studentId="@student.Id" 
+                                   class="btn btn-outline-success fw-bold text-start p-3 rounded-3 d-flex align-items-center justify-content-between w-100 h-100">
+                                    <div>
+                                        <div class="fw-bold"><i class="bi bi-award me-2"></i>Năng Lực & Phẩm Chất</div>
+                                        <small class="text-muted fw-normal d-block mt-1">Đánh giá 3 NL & 5 PC định kỳ</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </div>
+
+                            <div class="col-md-6">
+                                <a asp-area="" asp-controller="PhuHuynh" asp-action="DiemDanh" asp-route-studentId="@student.Id" 
+                                   class="btn btn-light border fw-bold text-dark text-start p-3 rounded-3 d-flex align-items-center justify-content-between w-100">
+                                    <div>
+                                        <i class="bi bi-calendar3 me-2 text-warning"></i>Lịch Sử Chuyên Cần
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted"></i>
+                                </a>
+                            </div>
+
+                            <div class="col-md-6">
+                                <a asp-area="" asp-controller="PhuHuynh" asp-action="ThoiKhoaBieu" asp-route-studentId="@student.Id" 
+                                   class="btn btn-light border fw-bold text-dark text-start p-3 rounded-3 d-flex align-items-center justify-content-between w-100">
+                                    <div>
+                                        <i class="bi bi-table me-2 text-info"></i>Thời Khóa Biểu
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+        <i class="bi bi-person-x fs-1 text-muted mb-3"></i>
+        <h4 class="fw-bold text-secondary">Chưa tìm thấy học sinh liên kết</h4>
+        <p class="text-muted">Tài khoản này hiện chưa được gắn mã liên kết với học sinh nào. Vui lòng liên hệ Giáo viên chủ nhiệm để hoàn tất liên kết tài khoản Phụ huynh.</p>
+    </div>
+}

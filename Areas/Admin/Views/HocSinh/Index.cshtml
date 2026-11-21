@@ -1,0 +1,452 @@
+@model IEnumerable<QLHS.Models.HocSinh>
+
+@{
+    ViewData["Title"] = "Quản lý Hồ sơ Học sinh";
+    var namHocs = ViewBag.NamHocs as List<QLHS.Models.NamHoc>;
+    var khoiLops = ViewBag.KhoiLops as List<QLHS.Models.KhoiLop>;
+    var lopHocs = ViewBag.LopHocs as List<QLHS.Models.LopHoc>;
+}
+
+<!-- TIÊU ĐỀ & NÚT THÊM MỚI -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1"><i class="bi bi-people me-2"></i>QUẢN LÝ HỒ SƠ HỌC SINH</h3>
+        <p class="text-muted mb-0">Tiếp nhận học sinh mới, xếp lớp và cập nhật trạng thái học tập toàn trường.</p>
+    </div>
+    <button type="button" class="btn btn-primary fw-bold" onclick="openCreateModal()">
+        <i class="bi bi-person-plus me-1"></i>Thêm Học Sinh Mới
+    </button>
+</div>
+
+<!-- BỘ LỌC ĐA NĂNG -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-muted">Tìm kiếm:</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="search" class="form-control" placeholder="Mã HS hoặc Họ tên..." value="@ViewBag.CurrentSearch" />
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Năm học:</label>
+                <select name="namHocId" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tất cả --</option>
+                    @if (namHocs != null)
+                    {
+                        foreach (var n in namHocs)
+                        {
+                            <option value="@n.Id" selected="@(ViewBag.CurrentNamHocId == n.Id)">@n.TenNamHoc (HK @n.HocKyHienTai)</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Khối lớp:</label>
+                <select name="khoiLopId" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tất cả --</option>
+                    @if (khoiLops != null)
+                    {
+                        foreach (var k in khoiLops)
+                        {
+                            <option value="@k.Id" selected="@(ViewBag.CurrentKhoiLopId == k.Id)">Khối @k.SoKhoi</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Lớp học:</label>
+                <select name="lopHocId" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tất cả --</option>
+                    @if (lopHocs != null)
+                    {
+                        foreach (var l in lopHocs)
+                        {
+                            <option value="@l.Id" selected="@(ViewBag.CurrentLopHocId == l.Id)">Lớp @l.TenLop</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Trạng thái học:</label>
+                <select name="trangThaiHoc" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tất cả --</option>
+                    <option value="dang_hoc" selected="@(ViewBag.CurrentTrangThaiHoc == "dang_hoc")">Đang học</option>
+                    <option value="chuyen_truong" selected="@(ViewBag.CurrentTrangThaiHoc == "chuyen_truong")">Chuyển trường</option>
+                    <option value="thoi_hoc" selected="@(ViewBag.CurrentTrangThaiHoc == "thoi_hoc")">Thôi học</option>
+                    <option value="da_tot_nghiep" selected="@(ViewBag.CurrentTrangThaiHoc == "da_tot_nghiep")">Đã tốt nghiệp</option>
+                </select>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <a href="/Admin/HocSinh" class="btn btn-outline-secondary w-100" title="Đặt lại bộ lọc"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- BẢNG DANH SÁCH HỌC SINH -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Mã HS</th>
+                        <th>Họ Và Tên</th>
+                        <th>Giới Tính</th>
+                        <th>Ngày Sinh</th>
+                        <th>Trạng Thái Học</th>
+                        <th>Lớp Hiện Tại</th>
+                        <th>Khối / Năm Học</th>
+                        <th class="text-end pe-3">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            var lop = item.LopHocHienTai;
+                            <tr>
+                                <td class="ps-3"><strong class="text-primary">@item.MaHocSinh</strong></td>
+                                <td class="fw-bold text-dark fs-6">@item.HoTen</td>
+                                <td>
+                                    @if (item.GioiTinh == "Nam")
+                                    {
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">Nam</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">Nữ</span>
+                                    }
+                                </td>
+                                <td>@(item.NgaySinh.HasValue ? item.NgaySinh.Value.ToString("dd/MM/yyyy") : "---")</td>
+                                <td>
+                                    @switch (item.TrangThaiHoc)
+                                    {
+                                        case "dang_hoc":
+                                            <span class="badge bg-success px-2 py-1"><i class="bi bi-check-circle me-1"></i>Đang học</span>
+                                            break;
+                                        case "chuyen_truong":
+                                            <span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-arrow-right-circle me-1"></i>Chuyển trường</span>
+                                            break;
+                                        case "thoi_hoc":
+                                            <span class="badge bg-danger px-2 py-1"><i class="bi bi-x-circle me-1"></i>Thôi học</span>
+                                            break;
+                                        case "da_tot_nghiep":
+                                            <span class="badge bg-info text-dark px-2 py-1"><i class="bi bi-mortarboard me-1"></i>Đã tốt nghiệp</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary px-2 py-1">Đang học</span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    @if (lop != null)
+                                    {
+                                        <span class="fw-bold text-success"><i class="bi bi-door-open me-1"></i>Lớp @lop.TenLop</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Chưa xếp lớp</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (lop != null)
+                                    {
+                                        <small class="text-muted">Khối @lop.KhoiLop?.SoKhoi | @lop.NamHoc?.TenNamHoc</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">---</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-3">
+                                    <button class="btn btn-sm btn-outline-warning me-1" onclick="openEditModal(@item.Id)" title="Sửa hồ sơ">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="openDeleteModal(@item.Id, '@item.HoTen (@item.MaHocSinh)')" title="Xóa mềm">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Chưa có thông tin học sinh nào khớp với bộ lọc.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. MODAL THÊM HỌC SINH MỚI -->
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2"></i>Thêm Hồ Sơ Học Sinh Mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm" novalidate>
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Mã học sinh <span class="text-danger">*</span></label>
+                            <input type="text" id="create_MaHocSinh" name="MaHocSinh" class="form-control" placeholder="Ví dụ: HS2026001..." required />
+                            <div class="text-danger small mt-1" id="create_error_MaHocSinh"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Họ và tên <span class="text-danger">*</span></label>
+                            <input type="text" id="create_HoTen" name="HoTen" class="form-control" placeholder="Ví dụ: Nguyễn Văn An" required />
+                            <div class="text-danger small mt-1" id="create_error_HoTen"></div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Giới tính</label>
+                            <select name="GioiTinh" class="form-select">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Ngày sinh</label>
+                            <input type="date" name="NgaySinh" class="form-control" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Trạng thái học</label>
+                            <select name="TrangThaiHoc" class="form-select">
+                                <option value="dang_hoc">Đang học</option>
+                                <option value="chuyen_truong">Chuyển trường</option>
+                                <option value="thoi_hoc">Thôi học</option>
+                                <option value="da_tot_nghiep">Đã tốt nghiệp</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Xếp Lớp học hiện tại</label>
+                        <select name="LopHocHienTaiId" class="form-select">
+                            <option value="">-- Chưa xếp lớp --</option>
+                            @if (lopHocs != null)
+                            {
+                                foreach (var l in lopHocs)
+                                {
+                                    <option value="@l.Id">Lớp @l.TenLop (@l.NamHoc?.TenNamHoc)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Lưu Hồ Sơ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 2. MODAL CẬP NHẬT HỌC SINH -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Cập Nhật Hồ Sơ Học Sinh</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="edit_id" name="id" />
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Mã học sinh <span class="text-danger">*</span></label>
+                            <input type="text" id="edit_MaHocSinh" name="MaHocSinh" class="form-control" required />
+                            <div class="text-danger small mt-1" id="edit_error_MaHocSinh"></div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Họ và tên <span class="text-danger">*</span></label>
+                            <input type="text" id="edit_HoTen" name="HoTen" class="form-control" required />
+                            <div class="text-danger small mt-1" id="edit_error_HoTen"></div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Giới tính</label>
+                            <select id="edit_GioiTinh" name="GioiTinh" class="form-select">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Ngày sinh</label>
+                            <input type="date" id="edit_NgaySinh" name="NgaySinh" class="form-control" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Trạng thái học</label>
+                            <select id="edit_TrangThaiHoc" name="TrangThaiHoc" class="form-select">
+                                <option value="dang_hoc">Đang học</option>
+                                <option value="chuyen_truong">Chuyển trường</option>
+                                <option value="thoi_hoc">Thôi học</option>
+                                <option value="da_tot_nghiep">Đã tốt nghiệp</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Xếp Lớp học hiện tại</label>
+                        <select id="edit_LopHocHienTaiId" name="LopHocHienTaiId" class="form-select">
+                            <option value="">-- Chưa xếp lớp --</option>
+                            @if (lopHocs != null)
+                            {
+                                foreach (var l in lopHocs)
+                                {
+                                    <option value="@l.Id">Lớp @l.TenLop (@l.NamHoc?.TenNamHoc)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning fw-bold">Cập Nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 3. MODAL XÁC NHẬN XÓA MỀM -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Xác Nhận Xóa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="deleteForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="delete_id" name="id" />
+                <div class="modal-body text-center py-4">
+                    <p class="mb-1">Bạn có chắc muốn xóa mềm học sinh:</p>
+                    <h5 id="delete_HoTen" class="text-danger fw-bold"></h5>
+                    <small class="text-muted">Hồ sơ sẽ được đánh dấu xóa (ngay_xoa_mem).</small>
+                </div>
+                <div class="modal-footer bg-light justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger fw-bold">Đồng Ý Xóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const createModal = new bootstrap.Modal(document.getElementById('createModal'));
+        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+        function openCreateModal() {
+            document.getElementById('createForm').reset();
+            document.getElementById('create_error_MaHocSinh').innerText = '';
+            document.getElementById('create_error_HoTen').innerText = '';
+            createModal.show();
+        }
+
+        function openEditModal(id) {
+            document.getElementById('edit_error_MaHocSinh').innerText = '';
+            document.getElementById('edit_error_HoTen').innerText = '';
+
+            fetch(`/Admin/HocSinh/GetById/${id}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        document.getElementById('edit_id').value = res.data.id;
+                        document.getElementById('edit_MaHocSinh').value = res.data.maHocSinh;
+                        document.getElementById('edit_HoTen').value = res.data.hoTen;
+                        document.getElementById('edit_GioiTinh').value = res.data.gioiTinh || 'Nam';
+                        document.getElementById('edit_NgaySinh').value = res.data.ngaySinh || '';
+                        document.getElementById('edit_TrangThaiHoc').value = res.data.trangThaiHoc || 'dang_hoc';
+                        document.getElementById('edit_LopHocHienTaiId').value = res.data.lopHocHienTaiId || '';
+                        editModal.show();
+                    } else {
+                        alert(res.message);
+                    }
+                });
+        }
+
+        function openDeleteModal(id, hoTen) {
+            document.getElementById('delete_id').value = id;
+            document.getElementById('delete_HoTen').innerText = hoTen;
+            deleteModal.show();
+        }
+
+        // Submit Form Thêm Mới
+        document.getElementById('createForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch('/Admin/HocSinh/Create', {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    document.getElementById('create_error_MaHocSinh').innerText = res.message;
+                }
+            });
+        });
+
+        // Submit Form Cập Nhật
+        document.getElementById('editForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch('/Admin/HocSinh/Edit', {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    document.getElementById('edit_error_MaHocSinh').innerText = res.message;
+                }
+            });
+        });
+
+        // Submit Form Xóa Mềm
+        document.getElementById('deleteForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch('/Admin/HocSinh/Delete', {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    alert(res.message);
+                }
+            });
+        });
+    </script>
+}

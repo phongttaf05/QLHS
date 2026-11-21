@@ -1,0 +1,387 @@
+@model IEnumerable<QLHS.Models.LopHoc>
+
+@{
+    ViewData["Title"] = "Quản lý Lớp Học";
+    var namHocs = ViewBag.NamHocs as List<QLHS.Models.NamHoc>;
+    var khoiLops = ViewBag.KhoiLops as List<QLHS.Models.KhoiLop>;
+    var giaoViens = ViewBag.GiaoViens as List<QLHS.Models.GiaoVien>;
+}
+
+<!-- TIÊU ĐỀ & NÚT THÊM MỚI -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1"><i class="bi bi-door-open me-2"></i>QUẢN LÝ LỚP HỌC</h3>
+        <p class="text-muted mb-0">Thêm mới, chia lớp và phân công Giáo viên chủ nhiệm theo từng Năm học.</p>
+    </div>
+    <button type="button" class="btn btn-primary fw-bold" onclick="openCreateModal()">
+        <i class="bi bi-plus-circle me-1"></i>Thêm Lớp Học
+    </button>
+</div>
+
+<!-- BỘ LỌC DANH SÁCH -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-muted">Lọc theo Năm học:</label>
+                <select name="namHocId" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tất cả Năm học --</option>
+                    @if (namHocs != null)
+                    {
+                        foreach (var item in namHocs)
+                        {
+                            <option value="@item.Id" selected="@(ViewBag.CurrentNamHocId == item.Id)">
+                                @item.TenNamHoc - HK @item.HocKyHienTai
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-muted">Lọc theo Khối lớp:</label>
+                <select name="khoiLopId" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tất cả Khối --</option>
+                    @if (khoiLops != null)
+                    {
+                        foreach (var item in khoiLops)
+                        {
+                            <option value="@item.Id" selected="@(ViewBag.CurrentKhoiLopId == item.Id)">
+                                Khối @item.SoKhoi
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="/Admin/LopHoc" class="btn btn-outline-secondary w-100">Xóa bộ lọc</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- BẢNG DANH SÁCH LỚP HỌC -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">ID</th>
+                        <th>Tên Lớp</th>
+                        <th>Khối</th>
+                        <th>Năm Học</th>
+                        <th>Giáo Viên Chủ Nhiệm</th>
+                        <th>Sĩ Số</th>
+                        <th class="text-end pe-3">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-3 text-muted">#@item.Id</td>
+                                <td class="fw-bold text-primary fs-6">Lớp @item.TenLop</td>
+                                <td><span class="badge bg-light text-dark border">Khối @item.KhoiLop?.SoKhoi</span></td>
+                                <td>@item.NamHoc?.TenNamHoc (HK @item.NamHoc?.HocKyHienTai)</td>
+                                <td>
+                                    @if (item.GiaVienChuNhiem != null)
+                                    {
+                                        <span class="fw-semibold text-dark"><i class="bi bi-person-badge text-success me-1"></i>@item.GiaVienChuNhiem.HoTen</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning">Chưa phân công</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-info text-dark">
+                                        <i class="bi bi-people me-1"></i>@(item.HocSinhs != null ? item.HocSinhs.Count(h => h.NgayXoaMem == null) : 0) học sinh
+                                    </span>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <button class="btn btn-sm btn-outline-warning me-1" onclick="openEditModal(@item.Id)" title="Sửa">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="openDeleteModal(@item.Id, 'Lớp @item.TenLop')" title="Xóa">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">Chưa có lớp học nào khớp với bộ lọc.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. MODAL THÊM LỚP HỌC -->
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-door-open me-2"></i>Thêm Lớp Học Mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm" novalidate>
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tên lớp <span class="text-danger">*</span></label>
+                        <input type="text" id="create_TenLop" name="TenLop" class="form-control" placeholder="Ví dụ: 1A, 2B, 4A1..." />
+                        <div class="text-danger small mt-1" id="create_error_TenLop"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Khối lớp <span class="text-danger">*</span></label>
+                            <select name="KhoiLopId" class="form-select" required>
+                                @if (khoiLops != null)
+                                {
+                                    foreach (var k in khoiLops)
+                                    {
+                                        <option value="@k.Id">Khối @k.SoKhoi</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Năm học <span class="text-danger">*</span></label>
+                            <select name="NamHocId" class="form-select" required>
+                                @if (namHocs != null)
+                                {
+                                    foreach (var n in namHocs)
+                                    {
+                                        <option value="@n.Id">@n.TenNamHoc (HK @n.HocKyHienTai)</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Giáo viên chủ nhiệm</label>
+                        <select name="GiaVienChuNhiemId" class="form-select">
+                            <option value="">-- Chưa phân công --</option>
+                            @if (giaoViens != null)
+                            {
+                                foreach (var gv in giaoViens)
+                                {
+                                    <option value="@gv.Id">@gv.HoTen</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Lưu Lớp Học</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 2. MODAL SỬA LỚP HỌC -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Cập Nhật Lớp Học</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="edit_id" name="id" />
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tên lớp <span class="text-danger">*</span></label>
+                        <input type="text" id="edit_TenLop" name="TenLop" class="form-control" />
+                        <div class="text-danger small mt-1" id="edit_error_TenLop"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Khối lớp <span class="text-danger">*</span></label>
+                            <select id="edit_KhoiLopId" name="KhoiLopId" class="form-select">
+                                @if (khoiLops != null)
+                                {
+                                    foreach (var k in khoiLops)
+                                    {
+                                        <option value="@k.Id">Khối @k.SoKhoi</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Năm học <span class="text-danger">*</span></label>
+                            <select id="edit_NamHocId" name="NamHocId" class="form-select">
+                                @if (namHocs != null)
+                                {
+                                    foreach (var n in namHocs)
+                                    {
+                                        <option value="@n.Id">@n.TenNamHoc (HK @n.HocKyHienTai)</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Giáo viên chủ nhiệm</label>
+                        <select id="edit_GiaVienChuNhiemId" name="GiaVienChuNhiemId" class="form-select">
+                            <option value="">-- Chưa phân công --</option>
+                            @if (giaoViens != null)
+                            {
+                                foreach (var gv in giaoViens)
+                                {
+                                    <option value="@gv.Id">@gv.HoTen</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning fw-bold">Cập Nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 3. MODAL XÁC NHẬN XÓA -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Xác Nhận Xóa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="deleteForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" id="delete_id" name="id" />
+                <div class="modal-body text-center py-4">
+                    <p class="mb-1">Bạn có chắc muốn xóa lớp:</p>
+                    <h5 id="delete_TenLop" class="text-danger fw-bold"></h5>
+                    <small class="text-muted">Hành động này không thể hoàn tác!</small>
+                </div>
+                <div class="modal-footer bg-light justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger fw-bold">Đồng Ý Xóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const createModal = new bootstrap.Modal(document.getElementById('createModal'));
+        const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+        function openCreateModal() {
+            document.getElementById('createForm').reset();
+            document.getElementById('create_error_TenLop').innerText = '';
+            createModal.show();
+        }
+
+        function openEditModal(id) {
+            document.getElementById('edit_error_TenLop').innerText = '';
+            fetch(`/Admin/LopHoc/GetById/${id}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        document.getElementById('edit_id').value = res.data.id;
+                        document.getElementById('edit_TenLop').value = res.data.tenLop;
+                        document.getElementById('edit_KhoiLopId').value = res.data.khoiLopId;
+                        document.getElementById('edit_NamHocId').value = res.data.namHocId;
+                        document.getElementById('edit_GiaVienChuNhiemId').value = res.data.giaVienChuNhiemId || '';
+                        editModal.show();
+                    } else {
+                        alert(res.message);
+                    }
+                });
+        }
+
+        function openDeleteModal(id, tenLop) {
+            document.getElementById('delete_id').value = id;
+            document.getElementById('delete_TenLop').innerText = tenLop;
+            deleteModal.show();
+        }
+
+        // Submit Form Thêm Mới
+        document.getElementById('createForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const tenLop = document.getElementById('create_TenLop').value;
+            if (!tenLop || tenLop.trim() === '') {
+                document.getElementById('create_error_TenLop').innerText = 'Tên lớp không được để trống!';
+                return;
+            }
+
+            fetch('/Admin/LopHoc/Create', {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    document.getElementById('create_error_TenLop').innerText = res.message;
+                }
+            });
+        });
+
+        // Submit Form Sửa
+        document.getElementById('editForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const tenLop = document.getElementById('edit_TenLop').value;
+            if (!tenLop || tenLop.trim() === '') {
+                document.getElementById('edit_error_TenLop').innerText = 'Tên lớp không được để trống!';
+                return;
+            }
+
+            fetch('/Admin/LopHoc/Edit', {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    document.getElementById('edit_error_TenLop').innerText = res.message;
+                }
+            });
+        });
+
+        // Submit Form Xóa
+        document.getElementById('deleteForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch('/Admin/LopHoc/Delete', {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    alert(res.message);
+                }
+            });
+        });
+    </script>
+}

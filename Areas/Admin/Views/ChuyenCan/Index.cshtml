@@ -1,0 +1,592 @@
+@model QLHS.Areas.Admin.ViewModels.ChuyenCanIndexViewModel
+
+@{
+    ViewData["Title"] = "Giám Sát Chuyên Cần";
+    var todayStr = DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd");
+}
+
+<!-- TIÊU ĐỀ & XUẤT BÁO CÁO -->
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1">
+            <i class="bi bi-clipboard2-check me-2"></i>GIÁM SÁT & BÁO CÁO CHUYÊN CẦN TOÀN TRƯỜNG
+        </h3>
+        <p class="text-muted mb-0">Theo dõi tình hình điểm danh của Giáo viên theo ngày, thống kê tỉ lệ chuyên cần từng lớp và xuất báo cáo định kỳ.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-area="Admin" asp-controller="ChuyenCan" asp-action="ExportCsv"
+           asp-route-namHocId="@Model.NamHocId"
+           asp-route-khoiLopId="@Model.KhoiLopId"
+           asp-route-lopHocId="@Model.LopHocId"
+           asp-route-tuNgay="@Model.TuNgay.ToString("yyyy-MM-dd")"
+           asp-route-denNgay="@Model.DenNgay.ToString("yyyy-MM-dd")"
+           class="btn btn-success fw-semibold shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Báo Cáo CSV
+        </a>
+    </div>
+</div>
+
+<!-- THANH LỌC ĐA NĂNG -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3">
+        <form method="get" id="filterForm" class="row g-3 align-items-end">
+            <input type="hidden" name="tab" id="activeTabInput" value="@Model.ActiveTab" />
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Năm học:</label>
+                <select name="namHocId" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tất cả --</option>
+                    @foreach (var n in Model.NamHocs)
+                    {
+                        <option value="@n.Id" selected="@(Model.NamHocId == n.Id)">@n.TenNamHoc (HK @n.HocKyHienTai)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Khối lớp:</label>
+                <select name="khoiLopId" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tất cả --</option>
+                    @foreach (var k in Model.KhoiLops)
+                    {
+                        <option value="@k.Id" selected="@(Model.KhoiLopId == k.Id)">Khối @k.SoKhoi</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Lớp học:</label>
+                <select name="lopHocId" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">-- Tất cả lớp --</option>
+                    @foreach (var l in Model.LopHocs)
+                    {
+                        <option value="@l.Id" selected="@(Model.LopHocId == l.Id)">Lớp @l.TenLop</option>
+                    }
+                </select>
+            </div>
+
+            @if (Model.ActiveTab == "theo-ngay")
+            {
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small text-muted">Ngày điểm danh:</label>
+                    <input type="date" name="ngay" class="form-control form-control-sm"
+                           max="@todayStr"
+                           value="@Model.SelectedDate.ToString("yyyy-MM-dd")"
+                           onchange="this.form.submit()" />
+                    <input type="hidden" name="tuNgay" value="@Model.TuNgay.ToString("yyyy-MM-dd")" />
+                    <input type="hidden" name="denNgay" value="@Model.DenNgay.ToString("yyyy-MM-dd")" />
+                </div>
+            }
+            else
+            {
+                <input type="hidden" name="ngay" value="@Model.SelectedDate.ToString("yyyy-MM-dd")" />
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small text-muted">Từ ngày:</label>
+                    <input type="date" name="tuNgay" class="form-control form-control-sm"
+                           max="@todayStr"
+                           value="@Model.TuNgay.ToString("yyyy-MM-dd")"
+                           onchange="this.form.submit()" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small text-muted">Đến ngày:</label>
+                    <input type="date" name="denNgay" class="form-control form-control-sm"
+                           max="@todayStr"
+                           value="@Model.DenNgay.ToString("yyyy-MM-dd")"
+                           onchange="this.form.submit()" />
+                </div>
+            }
+
+            @if (Model.ActiveTab != "thong-ke")
+            {
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small text-muted">Trạng thái:</label>
+                    <select name="trangThai" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">-- Tất cả --</option>
+                        <option value="co_mat" selected="@(Model.TrangThai == "co_mat")">Có mặt</option>
+                        <option value="nghi_co_phep" selected="@(Model.TrangThai == "nghi_co_phep")">Nghỉ có phép</option>
+                        <option value="nghi_khong_phep" selected="@(Model.TrangThai == "nghi_khong_phep")">Nghỉ không phép</option>
+                        @if (Model.ActiveTab == "theo-ngay")
+                        {
+                            <option value="chua_diem_danh" selected="@(Model.TrangThai == "chua_diem_danh")">Chưa điểm danh</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-muted">Tìm học sinh:</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" name="search" class="form-control" placeholder="Mã HS / Họ tên..." value="@Model.Search" />
+                    <button type="submit" class="btn btn-primary" title="Tìm kiếm"><i class="bi bi-search"></i></button>
+                    <a href="/Admin/ChuyenCan?tab=@Model.ActiveTab" class="btn btn-outline-secondary" title="Đặt lại bộ lọc"><i class="bi bi-arrow-counterclockwise"></i></a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ĐIỀU HƯỚNG 3 TAB CHỨC NĂNG -->
+<ul class="nav nav-pills mb-4 bg-white p-2 rounded-3 shadow-sm gap-2">
+    <li class="nav-item">
+        <a class="nav-link fw-semibold @(Model.ActiveTab == "theo-ngay" ? "active" : "text-dark")"
+           href="javascript:void(0)" onclick="switchTab('theo-ngay')">
+            <i class="bi bi-calendar-day me-1"></i>Giám Sát Theo Ngày (@Model.SelectedDate.ToString("dd/MM/yyyy"))
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link fw-semibold @(Model.ActiveTab == "thong-ke" ? "active" : "text-dark")"
+           href="javascript:void(0)" onclick="switchTab('thong-ke')">
+            <i class="bi bi-bar-chart-line me-1"></i>Thống Kê Chuyên Cần (@Model.TuNgay.ToString("dd/MM") - @Model.DenNgay.ToString("dd/MM"))
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link fw-semibold @(Model.ActiveTab == "lich-su" ? "active" : "text-dark")"
+           href="javascript:void(0)" onclick="switchTab('lich-su')">
+            <i class="bi bi-clock-history me-1"></i>Nhật Ký Điểm Danh (@Model.LichSuDiemDanh.Count)
+        </a>
+    </li>
+</ul>
+
+<!-- ========================================================================= -->
+<!-- TAB 1: GIÁM SÁT CHUYÊN CẦN THEO NGÀY (CHỈ XEM) -->
+<!-- ========================================================================= -->
+@if (Model.ActiveTab == "theo-ngay")
+{
+    <!-- 5 THẺ KPI TỔNG QUAN NGÀY -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-primary">
+                <div class="card-body py-3">
+                    <div class="text-muted small fw-bold text-uppercase">Tổng sĩ số</div>
+                    <div class="d-flex justify-content-between align-items-end mt-1">
+                        <h3 class="fw-bold text-primary mb-0">@Model.TongHocSinh</h3>
+                        <span class="badge bg-primary bg-opacity-10 text-primary">@Model.TiLeChuyenCanNgay% đi học</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-success">
+                <div class="card-body py-3">
+                    <div class="text-muted small fw-bold text-uppercase">Có mặt</div>
+                    <div class="d-flex justify-content-between align-items-end mt-1">
+                        <h3 class="fw-bold text-success mb-0">@Model.SoCoMat</h3>
+                        <i class="bi bi-check-circle-fill fs-4 text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-warning">
+                <div class="card-body py-3">
+                    <div class="text-muted small fw-bold text-uppercase">Nghỉ có phép</div>
+                    <div class="d-flex justify-content-between align-items-end mt-1">
+                        <h3 class="fw-bold text-warning mb-0">@Model.SoNghiCoPhep</h3>
+                        <i class="bi bi-envelope-paper-fill fs-4 text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-danger">
+                <div class="card-body py-3">
+                    <div class="text-muted small fw-bold text-uppercase">Nghỉ không phép</div>
+                    <div class="d-flex justify-content-between align-items-end mt-1">
+                        <h3 class="fw-bold text-danger mb-0">@Model.SoNghiKhongPhep</h3>
+                        <i class="bi bi-x-circle-fill fs-4 text-danger opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl">
+            <div class="card border-0 shadow-sm rounded-3 h-100 border-start border-4 border-secondary">
+                <div class="card-body py-3">
+                    <div class="text-muted small fw-bold text-uppercase">Chưa điểm danh</div>
+                    <div class="d-flex justify-content-between align-items-end mt-1">
+                        <h3 class="fw-bold text-secondary mb-0">@Model.SoChuaDiemDanh</h3>
+                        <i class="bi bi-hourglass-split fs-4 text-secondary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG TỔNG HỢP THEO LỚP -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-building-check text-primary me-2"></i>TIẾN ĐỘ ĐIỂM DANH THEO LỚP — NGÀY @Model.SelectedDate.ToString("dd/MM/yyyy")
+            </h6>
+            <span class="badge bg-light text-dark border">@Model.TongHopTheoLop.Count lớp</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Lớp</th>
+                            <th>GV Chủ Nhiệm</th>
+                            <th class="text-center">Sĩ Số</th>
+                            <th class="text-center text-success">Có Mặt</th>
+                            <th class="text-center text-warning">Có Phép</th>
+                            <th class="text-center text-danger">Không Phép</th>
+                            <th class="text-center text-secondary">Chưa ĐD</th>
+                            <th style="width: 160px;">Tỉ Lệ</th>
+                            <th class="text-center">Trạng Thái Sổ</th>
+                            <th class="text-end pe-3">Chi Tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.TongHopTheoLop.Any())
+                        {
+                            foreach (var lop in Model.TongHopTheoLop)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="fw-bold text-primary">Lớp @lop.TenLop</span>
+                                        <div class="small text-muted">Khối @lop.SoKhoi • @lop.TenNamHoc</div>
+                                    </td>
+                                    <td>@lop.TenGvcn</td>
+                                    <td class="text-center fw-bold">@lop.SiSo</td>
+                                    <td class="text-center fw-bold text-success">@lop.CoMat</td>
+                                    <td class="text-center fw-bold text-warning">@lop.NghiCoPhep</td>
+                                    <td class="text-center fw-bold text-danger">@lop.NghiKhongPhep</td>
+                                    <td class="text-center fw-bold text-secondary">@lop.ChuaDiemDanh</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 8px;">
+                                                <div class="progress-bar @(lop.TiLeChuyenCan >= 90 ? "bg-success" : lop.TiLeChuyenCan >= 75 ? "bg-warning" : "bg-danger")"
+                                                     style="width: @lop.TiLeChuyenCan.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                                            </div>
+                                            <small class="fw-semibold">@lop.TiLeChuyenCan%</small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (lop.SiSo == 0)
+                                        {
+                                            <span class="badge bg-light text-muted border">Chưa có HS</span>
+                                        }
+                                        else if (lop.DaHoanTatDiemDanh)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Đã hoàn tất</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Thiếu @lop.ChuaDiemDanh</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <a asp-area="Admin" asp-controller="ChuyenCan" asp-action="Index"
+                                           asp-route-namHocId="@Model.NamHocId"
+                                           asp-route-khoiLopId="@Model.KhoiLopId"
+                                           asp-route-lopHocId="@lop.LopHocId"
+                                           asp-route-ngay="@Model.SelectedDate.ToString("yyyy-MM-dd")"
+                                           asp-route-tab="theo-ngay"
+                                           class="btn btn-sm btn-outline-primary" title="Xem chi tiết lớp">
+                                            <i class="bi bi-eye me-1"></i>Xem lớp
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">Không có lớp học nào phù hợp với bộ lọc.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG CHI TIẾT CHUYÊN CẦN HỌC SINH TRONG NGÀY (CHỈ XEM) -->
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-person-lines-fill text-primary me-2"></i>CHI TIẾT CHUYÊN CẦN HỌC SINH (@Model.ChiTietNgay.Count học sinh)
+            </h6>
+            <span class="badge bg-info bg-opacity-10 text-info border border-info">
+                <i class="bi bi-shield-check me-1"></i>Chế độ giám sát (Chỉ Giáo viên chủ nhiệm mới có quyền điểm danh đầu buổi)
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">STT</th>
+                            <th>Mã HS</th>
+                            <th>Họ Và Tên</th>
+                            <th>Lớp</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="pe-3">Người Xác Nhận / Thời Gian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.ChiTietNgay.Any())
+                        {
+                            int stt = 1;
+                            foreach (var item in Model.ChiTietNgay)
+                            {
+                                <tr>
+                                    <td class="ps-3 text-muted">@(stt++)</td>
+                                    <td><strong class="text-primary">@item.MaHocSinh</strong></td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@item.HoTen</div>
+                                        <small class="text-muted">@item.GioiTinh @(item.NgaySinh.HasValue ? $"• {item.NgaySinh.Value:dd/MM/yyyy}" : "")</small>
+                                    </td>
+                                    <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary">Lớp @item.TenLop</span></td>
+                                    <td class="text-center">
+                                        @switch (item.TrangThaiChuanHoa)
+                                        {
+                                            case "co_mat":
+                                                <span class="badge bg-success px-3 py-2"><i class="bi bi-check-lg me-1"></i>Có mặt</span>
+                                                break;
+                                            case "nghi_co_phep":
+                                                <span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-envelope-paper me-1"></i>Nghỉ có phép</span>
+                                                break;
+                                            case "nghi_khong_phep":
+                                                <span class="badge bg-danger px-3 py-2"><i class="bi bi-x-circle me-1"></i>Nghỉ không phép</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-secondary px-3 py-2">Chưa điểm danh</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td class="small text-muted pe-3">
+                                        @if (item.ThoiGianCapNhat.HasValue)
+                                        {
+                                            <div class="fw-semibold text-dark">@item.NguoiCapNhat</div>
+                                            <div>@item.ThoiGianCapNhat.Value.ToString("HH:mm dd/MM/yyyy")</div>
+                                        }
+                                        else
+                                        {
+                                            <span>---</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                    Không có học sinh nào khớp với bộ lọc hiện tại.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- TAB 2: THỐNG KÊ CHUYÊN CẦN THEO KHOẢNG THỜI GIAN -->
+<!-- ========================================================================= -->
+@if (Model.ActiveTab == "thong-ke")
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase">Tổng lượt điểm danh</div>
+                    <h3 class="fw-bold text-primary mb-0 mt-1">@Model.TongBanGhiKhoang</h3>
+                    <small class="text-muted">Tỉ lệ chuyên cần: <strong>@Model.TiLeChuyenCanKhoang%</strong></small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase">Lượt có mặt</div>
+                    <h3 class="fw-bold text-success mb-0 mt-1">@Model.TongCoMatKhoang</h3>
+                    <small class="text-muted">Từ @Model.TuNgay.ToString("dd/MM/yyyy")</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 border-start border-4 border-warning">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase">Lượt nghỉ có phép</div>
+                    <h3 class="fw-bold text-warning mb-0 mt-1">@Model.TongCoPhepKhoang</h3>
+                    <small class="text-muted">Đến @Model.DenNgay.ToString("dd/MM/yyyy")</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 border-start border-4 border-danger">
+                <div class="card-body">
+                    <div class="text-muted small fw-bold text-uppercase">Lượt nghỉ không phép</div>
+                    <h3 class="fw-bold text-danger mb-0 mt-1">@Model.TongKhongPhepKhoang</h3>
+                    <small class="text-danger">HS cần lưu ý: <strong>@Model.ThongKeTheoHocSinh.Count(x => x.CanhBao)</strong></small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-table text-primary me-2"></i>BẢNG TỔNG HỢP CHUYÊN CẦN HỌC SINH (@Model.TuNgay.ToString("dd/MM/yyyy") – @Model.DenNgay.ToString("dd/MM/yyyy"))
+            </h6>
+            <span class="small text-muted">Sắp xếp ưu tiên học sinh nghỉ không phép nhiều nhất lên đầu</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">STT</th>
+                            <th>Mã HS</th>
+                            <th>Họ Và Tên</th>
+                            <th>Lớp</th>
+                            <th class="text-center text-success">Có Mặt</th>
+                            <th class="text-center text-warning">Có Phép</th>
+                            <th class="text-center text-danger">Không Phép</th>
+                            <th class="text-center">Tổng Buổi</th>
+                            <th style="width: 170px;">Tỉ Lệ Chuyên Cần</th>
+                            <th class="text-center pe-3">Đánh Giá</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.ThongKeTheoHocSinh.Any())
+                        {
+                            int stt = 1;
+                            foreach (var hs in Model.ThongKeTheoHocSinh)
+                            {
+                                <tr class="@(hs.CanhBao ? "table-danger bg-opacity-10" : "")">
+                                    <td class="ps-3 text-muted">@(stt++)</td>
+                                    <td><strong class="text-primary">@hs.MaHocSinh</strong></td>
+                                    <td class="fw-bold text-dark">@hs.HoTen</td>
+                                    <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary">Lớp @hs.TenLop</span></td>
+                                    <td class="text-center fw-bold text-success">@hs.SoBuoiCoMat</td>
+                                    <td class="text-center fw-bold text-warning">@hs.SoBuoiCoPhep</td>
+                                    <td class="text-center fw-bold text-danger">@hs.SoBuoiKhongPhep</td>
+                                    <td class="text-center fw-semibold">@hs.TongBuoiGhiNhan</td>
+                                    <td>
+                                        @if (hs.TongBuoiGhiNhan > 0)
+                                        {
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="progress flex-grow-1" style="height: 8px;">
+                                                    <div class="progress-bar @(hs.TiLeChuyenCan >= 90 ? "bg-success" : hs.TiLeChuyenCan >= 75 ? "bg-warning" : "bg-danger")"
+                                                         style="width: @hs.TiLeChuyenCan.ToString(System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                                                </div>
+                                                <small class="fw-bold">@hs.TiLeChuyenCan%</small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Chưa có dữ liệu</span>
+                                        }
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        @if (hs.CanhBao)
+                                        {
+                                            <span class="badge bg-danger"><i class="bi bi-exclamation-octagon me-1"></i>Cần nhắc nhở</span>
+                                        }
+                                        else if (hs.TongBuoiGhiNhan == 0)
+                                        {
+                                            <span class="badge bg-light text-muted border">Chưa ghi nhận</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success">Ổn định</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-5">Chưa có dữ liệu học sinh phù hợp.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ========================================================================= -->
+<!-- TAB 3: NHẬT KÝ BẢN GHI ĐIỂM DANH (CHỈ XEM) -->
+<!-- ========================================================================= -->
+@if (Model.ActiveTab == "lich-su")
+{
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-journal-text text-primary me-2"></i>NHẬT KÝ BẢN GHI ĐIỂM DANH (Tối đa 300 bản ghi gần nhất)
+            </h6>
+            <span class="badge bg-light text-dark border">@Model.LichSuDiemDanh.Count bản ghi</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Ngày Điểm Danh</th>
+                            <th>Mã HS</th>
+                            <th>Họ Và Tên</th>
+                            <th>Lớp</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th>Người Xác Nhận</th>
+                            <th class="pe-3">Thời Gian Cập Nhật</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.LichSuDiemDanh.Any())
+                        {
+                            foreach (var log in Model.LichSuDiemDanh)
+                            {
+                                <tr>
+                                    <td class="ps-3 fw-bold">@log.NgayDiemDanh.ToString("dd/MM/yyyy")</td>
+                                    <td><code class="text-primary fw-semibold">@log.MaHocSinh</code></td>
+                                    <td class="fw-semibold text-dark">@log.HoTen</td>
+                                    <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary">Lớp @log.TenLop</span></td>
+                                    <td class="text-center">
+                                        @switch (log.TrangThaiChuanHoa)
+                                        {
+                                            case "co_mat":
+                                                <span class="badge bg-success px-2 py-1">Có mặt</span>
+                                                break;
+                                            case "nghi_co_phep":
+                                                <span class="badge bg-warning text-dark px-2 py-1">Nghỉ có phép</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-danger px-2 py-1">Nghỉ không phép</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td class="small">@log.NguoiCapNhat</td>
+                                    <td class="small text-muted pe-3">@(log.ThoiGianCapNhat?.ToString("HH:mm dd/MM/yyyy") ?? "---")</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-5">Không có bản ghi điểm danh nào trong khoảng thời gian này.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function switchTab(tabName) {
+            document.getElementById('activeTabInput').value = tabName;
+            document.getElementById('filterForm').submit();
+        }
+    </script>
+}

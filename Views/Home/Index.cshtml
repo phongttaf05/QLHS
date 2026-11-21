@@ -1,0 +1,114 @@
+@using QLHS.Models
+@{
+    ViewData["Title"] = "Trang Chủ - Cổng Thông Tin QLHS";
+    bool isAuthenticatedParent = User.Identity != null && User.Identity.IsAuthenticated && User.IsInRole("phu_huynh");
+    var dsCon = ViewBag.DanhSachConSummary as List<HocSinh>;
+    string namHoc = ViewBag.NamHocHienTai ?? "2026 - 2027";
+    int hocKy = ViewBag.HocKyHienTai ?? 1;
+}
+
+<!-- BANNER CHÀO MỪNG -->
+<div class="rounded-4 p-4 text-white mb-4 shadow-sm" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%) !important;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <span class="badge bg-white text-primary fw-bold px-3 py-2 mb-2 rounded-pill">
+                <i class="bi bi-mortarboard-fill me-1"></i> HỆ THỐNG QLHS TIỂU HỌC
+            </span>
+            <h2 class="fw-bold mb-1 text-white">Năm Học @namHoc - Học Kỳ @hocKy</h2>
+            <p class="mb-0 text-white-50">Sổ liên lạc điện tử & Quản lý đánh giá học sinh theo Thông tư 27/2020/TT-BGDĐT.</p>
+        </div>
+        <div>
+            <span class="badge bg-white bg-opacity-25 text-white fs-6 px-3 py-2 border border-white border-opacity-25 rounded-pill">
+                <i class="bi bi-calendar-check me-1"></i> Hôm nay: @DateTime.Now.ToString("dd/MM/yyyy")
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- KHOẢNH KHẮC PHỤ HUYNH (NẾU ĐÃ ĐĂNG NHẬP) -->
+@if (isAuthenticatedParent)
+{
+    <div class="card border-0 shadow-sm rounded-4 mb-4 bg-primary bg-opacity-10 border-start border-primary border-5">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <span class="badge bg-primary text-white fw-bold mb-2 px-3 py-1 rounded-pill">
+                        <i class="bi bi-person-heart me-1"></i> Góc Phụ Huynh
+                    </span>
+                    <h5 class="fw-bold text-dark mb-1">
+                        Xin chào phụ huynh <span class="text-primary">@ViewBag.HoTenPhuHuynh</span>!
+                    </h5>
+                    @if (dsCon != null && dsCon.Any())
+                    {
+                        <p class="text-muted small mb-0">
+                            Học sinh liên kết: 
+                            @foreach (var child in dsCon)
+                            {
+                                <span class="fw-bold text-dark me-2">
+                                    <i class="bi bi-person-fill text-primary"></i>@child.HoTen 
+                                    (@(child.LopHocHienTai != null ? "Lớp " + child.LopHocHienTai.TenLop : "Chưa xếp lớp"))
+                                </span>
+                            }
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Tài khoản chưa được gán liên kết với hồ sơ học sinh nào.</p>
+                    }
+                </div>
+
+                <a asp-area="" asp-controller="PhuHuynh" asp-action="Index" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm text-nowrap">
+                    Truy Cập Góc Phụ Huynh <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Dành cho Khách chưa đăng nhập -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 bg-light p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h5 class="fw-bold text-dark mb-1"><i class="bi bi-box-arrow-in-right text-primary me-2"></i>Cổng Thông Tin Học Sinh</h5>
+                <p class="text-muted small mb-0">Vui lòng đăng nhập tài khoản Phụ huynh, Giáo viên hoặc Quản trị viên để truy cập các chức năng tương ứng.</p>
+            </div>
+            <a asp-area="" asp-controller="Account" asp-action="Login" class="btn btn-primary fw-bold rounded-pill px-4 py-2 shadow-sm">
+                Đăng Nhập Ngay
+            </a>
+        </div>
+    </div>
+}
+
+<!-- THÔNG TIN TÍNH NĂNG THỰC TẾ CỦA HỆ THỐNG -->
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100">
+            <div class="icon-box bg-primary bg-opacity-10 text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                <i class="bi bi-journal-check fs-3"></i>
+            </div>
+            <h6 class="fw-bold text-dark">Chuẩn Thông Tư 27</h6>
+            <p class="text-muted small mb-0">Quản lý điểm số giữa kỳ, cuối kỳ và nhận xét định kỳ các môn học theo quy định của Bộ GD&ĐT.</p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100">
+            <div class="icon-box bg-success bg-opacity-10 text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                <i class="bi bi-award fs-3"></i>
+            </div>
+            <h6 class="fw-bold text-dark">Năng Lực & Phẩm Chất</h6>
+            <p class="text-muted small mb-0">Theo dõi định kỳ 3 nhóm Năng lực cốt lõi và 5 nhóm Phẩm chất chủ yếu của từng học sinh.</p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-4 text-center h-100">
+            <div class="icon-box bg-warning bg-opacity-10 text-warning rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                <i class="bi bi-calendar-check fs-3"></i>
+            </div>
+            <h6 class="fw-bold text-dark">Điểm Danh & Thời Khóa Biểu</h6>
+            <p class="text-muted small mb-0">Nhật ký chuyên cần hàng ngày, gửi đơn xin nghỉ học trực tuyến và xem lịch học hàng tuần.</p>
+        </div>
+    </div>
+</div>

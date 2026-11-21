@@ -1,0 +1,187 @@
+@{
+    ViewData["Title"] = "Đánh Giá Môn Học (Thông Tư 27)";
+    var dsPhanCong = ViewBag.DsPhanCong as List<QLHS.Models.PhanCongGiangDay>;
+    var dsHocSinh = ViewBag.DanhSachHocSinh as List<QLHS.Models.HocSinh>;
+    var danhGiaMap = ViewBag.DanhGiaMap as Dictionary<int, QLHS.Models.DanhGiaMonHoc>;
+
+    int selectedLopId = ViewBag.SelectedLopId ?? 0;
+    int selectedMonId = ViewBag.SelectedMonId ?? 0;
+    int selectedHocKy = ViewBag.SelectedHocKy ?? 1;
+}
+
+@Html.AntiForgeryToken()
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-area="GiaoVien" asp-controller="Home" asp-action="Index" class="text-decoration-none text-success"><i class="bi bi-house-door me-1"></i>Trang chủ</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Đánh giá môn học TT 27</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h3 class="fw-bold text-success mb-1">
+            <i class="bi bi-pencil-square me-2"></i>ĐÁNH GIÁ MÔN HỌC (THÔNG TƯ 27/2020/TT-BGDĐT)
+        </h3>
+        <p class="text-muted mb-0">Nhập mức đánh giá (T, H, C), điểm kiểm tra định kỳ và nhận xét quá trình học tập của học sinh.</p>
+    </div>
+</div>
+
+<!-- THANH LỌC LỚP, MÔN, HỌC KỲ -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-muted">Lớp & Môn phụ trách:</label>
+                <select id="selectLopMon" class="form-select" onchange="onLopMonChange(this)">
+                    @if (dsPhanCong != null)
+                    {
+                        foreach (var pc in dsPhanCong)
+                        {
+                            bool isSelected = (pc.LopHocId == selectedLopId && pc.MonHocId == selectedMonId);
+                            <option value="@pc.LopHocId-@pc.MonHocId" selected="@isSelected">
+                                Lớp @pc.LopHoc?.TenLop — Môn: @pc.MonHoc?.TenMon (@(pc.SoTietTuan ?? 0) tiết/tuần)
+                            </option>
+                        }
+                    }
+                </select>
+                <input type="hidden" name="lopHocId" id="hiddenLopHocId" value="@selectedLopId" />
+                <input type="hidden" name="monHocId" id="hiddenMonHocId" value="@selectedMonId" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-muted">Học kỳ:</label>
+                <select name="hocKy" class="form-select" onchange="this.form.submit()">
+                    <option value="1" selected="@(selectedHocKy == 1)">Học kỳ 1</option>
+                    <option value="2" selected="@(selectedHocKy == 2)">Học kỳ 2</option>
+                </select>
+            </div>
+            <div class="col-md-3 text-end">
+                <button type="submit" class="btn btn-success fw-bold w-100">
+                    <i class="bi bi-funnel me-1"></i>Lọc dữ liệu
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- BẢNG ĐÁNH GIÁ MÔN HỌC -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-card-checklist text-primary me-2"></i>BẢNG ĐÁNH GIÁ HỌC SINH (@(dsHocSinh?.Count ?? 0) học sinh)
+        </h5>
+        <span class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2">
+            Mức: T (Hoàn thành tốt) | H (Hoàn thành) | C (Chưa hoàn thành)
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4" style="width: 60px;">STT</th>
+                        <th style="width: 120px;">Mã HS</th>
+                        <th style="width: 180px;">Họ và tên</th>
+                        <th style="width: 110px;">Điểm GK</th>
+                        <th style="width: 110px;">Điểm CK</th>
+                        <th style="width: 180px;">Mức đánh giá</th>
+                        <th>Nhận xét của Giáo viên</th>
+                        <th class="text-end pe-4" style="width: 100px;">Lưu</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (dsHocSinh != null && dsHocSinh.Any())
+                    {
+                        int stt = 1;
+                        foreach (var hs in dsHocSinh)
+                        {
+                            var dg = (danhGiaMap != null && danhGiaMap.ContainsKey(hs.Id)) ? danhGiaMap[hs.Id] : null;
+                            <tr id="row-dg-@hs.Id">
+                                <td class="ps-4 text-muted">@(stt++)</td>
+                                <td><code>@hs.MaHocSinh</code></td>
+                                <td><strong class="text-dark">@hs.HoTen</strong></td>
+                                <td>
+                                    <input type="number" min="0" max="10" step="1" class="form-control form-control-sm text-center" id="gk-@hs.Id" value="@(dg?.DiemGiuaKy)" placeholder="-" />
+                                </td>
+                                <td>
+                                    <input type="number" min="0" max="10" step="1" class="form-control form-control-sm text-center fw-bold text-primary" id="ck-@hs.Id" value="@(dg?.DiemCuoiKy)" placeholder="-" />
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" id="muc-@hs.Id">
+                                        <option value="Hoan_thanh_tot" selected="@(dg?.MucDanhGia == "Hoan_thanh_tot" || dg?.MucDanhGia == "T")">T (Tốt)</option>
+                                        <option value="Hoan_thanh" selected="@(dg?.MucDanhGia == "Hoan_thanh" || dg?.MucDanhGia == "H" || dg == null)">H (Hoàn thành)</option>
+                                        <option value="Chua_hoan_thanh" selected="@(dg?.MucDanhGia == "Chua_hoan_thanh" || dg?.MucDanhGia == "C")">C (Chưa HT)</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" id="nx-@hs.Id" value="@(dg?.NhanXetGiaoVien)" placeholder="Nhập nhận xét quá trình học tập..." />
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button type="button" class="btn btn-sm btn-success fw-bold" onclick="luuDanhGia(@hs.Id)">
+                                        <i class="bi bi-floppy"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 text-muted d-block mb-2"></i>
+                                Không có học sinh trong lớp được chọn.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function getAntiForgeryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]').value;
+}
+
+function onLopMonChange(select) {
+    const val = select.value.split('-');
+    document.getElementById('hiddenLopHocId').value = val[0];
+    document.getElementById('hiddenMonHocId').value = val[1];
+    select.form.submit();
+}
+
+function luuDanhGia(hocSinhId) {
+    const lopId = @selectedLopId;
+    const monId = @selectedMonId;
+    const hk = @selectedHocKy;
+
+    const gk = document.getElementById('gk-' + hocSinhId).value;
+    const ck = document.getElementById('ck-' + hocSinhId).value;
+    const muc = document.getElementById('muc-' + hocSinhId).value;
+    const nx = document.getElementById('nx-' + hocSinhId).value;
+
+    const formData = new URLSearchParams();
+    formData.append('hocSinhId', hocSinhId);
+    formData.append('lopHocId', lopId);
+    formData.append('monHocId', monId);
+    formData.append('hocKy', hk);
+    if (gk) formData.append('diemGiuaKy', gk);
+    if (ck) formData.append('diemCuoiKy', ck);
+    formData.append('mucDanhGia', muc);
+    formData.append('nhanXet', nx);
+
+    fetch('/GiaoVien/DanhGiaMonHoc/LuuDanhGia', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: formData.toString()
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+    });
+}
+</script>

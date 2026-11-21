@@ -1,0 +1,103 @@
+@model IEnumerable<QLHS.Models.LopHoc>
+
+@{
+    ViewData["Title"] = "Quản Lý Lớp Chủ Nhiệm";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-area="GiaoVien" asp-controller="Home" asp-action="Index" class="text-decoration-none text-success"><i class="bi bi-house-door me-1"></i>Trang chủ</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Lớp chủ nhiệm</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h3 class="fw-bold text-success mb-1">
+            <i class="bi bi-person-video3 me-2"></i>QUẢN LÝ LỚP CHỦ NHIỆM
+        </h3>
+        <p class="text-muted mb-0">Hồ sơ và danh sách học sinh thuộc lớp do Thầy/Cô <strong>@ViewBag.TenGiaoVien</strong> làm chủ nhiệm.</p>
+    </div>
+</div>
+
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-danger rounded-4 shadow-sm">@ViewBag.ErrorMessage</div>
+}
+
+@if (Model != null && Model.Any())
+{
+    foreach (var lop in Model)
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold mb-0 text-primary">
+                        <i class="bi bi-door-open-fill me-2"></i>Lớp @lop.TenLop (Khối @(lop.KhoiLop?.SoKhoi ?? 1))
+                    </h5>
+                    <span class="text-muted small">Năm học: @(lop.NamHoc?.TenNamHoc ?? "2026-2027")</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <a asp-area="GiaoVien" asp-controller="DiemDanh" asp-action="Index" asp-route-lopHocId="@lop.Id" class="btn btn-sm btn-outline-success fw-bold">
+                        <i class="bi bi-calendar-check me-1"></i>Sổ điểm danh
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">STT</th>
+                                <th>Mã học sinh</th>
+                                <th>Họ và tên</th>
+                                <th>Ngày sinh</th>
+                                <th>Giới tính</th>
+                                <th>Trạng thái học</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (lop.HocSinhs != null && lop.HocSinhs.Any())
+                            {
+                                int stt = 1;
+                                foreach (var hs in lop.HocSinhs.OrderBy(h => h.HoTen))
+                                {
+                                    <tr>
+                                        <td class="ps-4 text-muted">@(stt++)</td>
+                                        <td><code>@hs.MaHocSinh</code></td>
+                                        <td><strong class="text-dark">@hs.HoTen</strong></td>
+                                        <td>@(hs.NgaySinh?.ToString("dd/MM/yyyy") ?? "---")</td>
+                                        <td>@hs.GioiTinh</td>
+                                        <td>
+                                            @if (hs.TrangThaiHoc == "dang_hoc")
+                                            {
+                                                <span class="badge bg-success-subtle text-success px-3 py-2">Đang học</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary px-3 py-2">@hs.TrangThaiHoc</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">Chưa có danh sách học sinh cho lớp này.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center text-muted">
+        <i class="bi bi-folder-x fs-1 text-muted d-block mb-3"></i>
+        <h5>Thầy/Cô hiện không phụ trách chủ nhiệm lớp nào trong năm học này.</h5>
+    </div>
+}

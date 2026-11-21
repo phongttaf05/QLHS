@@ -1,0 +1,162 @@
+@{
+    ViewData["Title"] = "Thời Khóa Biểu Giảng Dạy";
+    var banTkb = ViewBag.BanTkb as QLHS.Models.BanTkb;
+    var dsKhungTiet = ViewBag.DsKhungTiet as List<QLHS.Models.KhungTietHoc>;
+    var dsTietDay = ViewBag.DsTietDay as List<QLHS.Models.ThoiKhoaBieu>;
+
+    var thuLabels = new Dictionary<int, string>
+    {
+        { 2, "Thứ Hai" },
+        { 3, "Thứ Ba" },
+        { 4, "Thứ Tư" },
+        { 5, "Thứ Năm" },
+        { 6, "Thứ Sáu" }
+    };
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-area="GiaoVien" asp-controller="Home" asp-action="Index" class="text-decoration-none text-success"><i class="bi bi-house-door me-1"></i>Trang chủ</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Thời khóa biểu giảng dạy</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h3 class="fw-bold text-success mb-1">
+            <i class="bi bi-calendar3-week me-2"></i>THỜI KHÓA BIỂU GIẢNG DẠY
+        </h3>
+        <p class="text-muted mb-0">Lịch dạy tuần của Thầy/Cô: <strong class="text-dark">@ViewBag.TenGiaoVien</strong></p>
+    </div>
+    @if (banTkb != null)
+    {
+        <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-success px-3 py-2 fs-6 rounded-pill">
+                <i class="bi bi-check-circle-fill me-1"></i>Bản công bố số @banTkb.SoPhienBan
+            </span>
+            <span class="badge bg-primary-subtle text-primary px-3 py-2 fs-6 rounded-pill">
+                Năm học: @(banTkb.HocKy?.NamHoc?.TenNamHoc ?? "2026-2027") (HK @(banTkb.HocKy?.SoHocKy ?? 1))
+            </span>
+        </div>
+    }
+</div>
+
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-danger rounded-4 shadow-sm">@ViewBag.ErrorMessage</div>
+}
+else if (ViewBag.ThongBao != null)
+{
+    <div class="alert alert-info rounded-4 shadow-sm"><i class="bi bi-info-circle me-2"></i>@ViewBag.ThongBao</div>
+}
+else if (banTkb != null && dsKhungTiet != null)
+{
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-grid-3x3-gap-fill text-success me-2"></i>LỊCH DẠY CHI TIẾT THEO TUẦN (TỔNG CỘNG: @ViewBag.TongSoTiet TIẾT)
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i>In lịch dạy
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered text-center align-middle mb-0" style="font-size: 0.92rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 130px;">Buổi / Tiết</th>
+                            @for (int thu = 2; thu <= 6; thu++)
+                            {
+                                <th style="width: 17%;">@thuLabels[thu]</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- BUỔI SÁNG -->
+                        <tr class="table-primary text-primary fw-bold text-start">
+                            <td colspan="6" class="ps-3"><i class="bi bi-sun-fill me-2"></i>BUỔI SÁNG (Tiết 1 - Tiết 4)</td>
+                        </tr>
+                        @for (int t = 1; t <= 4; t++)
+                        {
+                            <tr>
+                                <td class="fw-semibold bg-light text-muted">
+                                    Tiết @t
+                                </td>
+                                @for (int thu = 2; thu <= 6; thu++)
+                                {
+                                    var khung = dsKhungTiet.FirstOrDefault(k => k.ThuTrongTuan == thu && k.BuoiHoc == "SANG" && k.TietHoc == t);
+                                    var tietDay = khung != null ? dsTietDay?.FirstOrDefault(x => x.KhungTietId == khung.Id) : null;
+
+                                    if (tietDay != null)
+                                    {
+                                        <td class="p-2" style="background-color: #ecfdf5;">
+                                            <div class="p-2 rounded-3 border border-success bg-white shadow-sm">
+                                                <div class="fw-bold text-success fs-6">
+                                                    @(tietDay.PhanCong?.MonHoc?.TenMon ?? "Môn học")
+                                                </div>
+                                                <div class="badge bg-primary mt-1">
+                                                    Lớp @(tietDay.PhanCong?.LopHoc?.TenLop ?? "")
+                                                </div>
+                                                <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                                    @khung?.GioBatDau?.ToString(@"hh\:mm") - @khung?.GioKetThuc?.ToString(@"hh\:mm")
+                                                </div>
+                                            </div>
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td class="p-2 text-muted" style="background-color: #fafafa;">
+                                            <span class="text-muted small">---</span>
+                                        </td>
+                                    }
+                                }
+                            </tr>
+                        }
+
+                        <!-- BUỔI CHIỀU -->
+                        <tr class="table-warning text-dark fw-bold text-start">
+                            <td colspan="6" class="ps-3"><i class="bi bi-cloud-sun-fill me-2"></i>BUỔI CHIỀU (Tiết 1 - Tiết 3)</td>
+                        </tr>
+                        @for (int t = 1; t <= 3; t++)
+                        {
+                            <tr>
+                                <td class="fw-semibold bg-light text-muted">
+                                    Tiết @t
+                                </td>
+                                @for (int thu = 2; thu <= 6; thu++)
+                                {
+                                    var khung = dsKhungTiet.FirstOrDefault(k => k.ThuTrongTuan == thu && k.BuoiHoc == "CHIEU" && k.TietHoc == t);
+                                    var tietDay = khung != null ? dsTietDay?.FirstOrDefault(x => x.KhungTietId == khung.Id) : null;
+
+                                    if (tietDay != null)
+                                    {
+                                        <td class="p-2" style="background-color: #ecfdf5;">
+                                            <div class="p-2 rounded-3 border border-success bg-white shadow-sm">
+                                                <div class="fw-bold text-success fs-6">
+                                                    @(tietDay.PhanCong?.MonHoc?.TenMon ?? "Môn học")
+                                                </div>
+                                                <div class="badge bg-primary mt-1">
+                                                    Lớp @(tietDay.PhanCong?.LopHoc?.TenLop ?? "")
+                                                </div>
+                                                <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                                    @khung?.GioBatDau?.ToString(@"hh\:mm") - @khung?.GioKetThuc?.ToString(@"hh\:mm")
+                                                </div>
+                                            </div>
+                                        </td>
+                                    }
+                                    else
+                                    {
+                                        <td class="p-2 text-muted" style="background-color: #fafafa;">
+                                            <span class="text-muted small">---</span>
+                                        </td>
+                                    }
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

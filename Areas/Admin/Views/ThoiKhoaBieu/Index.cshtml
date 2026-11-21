@@ -1,0 +1,1126 @@
+@model IEnumerable<QLHS.Models.ThoiKhoaBieu>
+
+@{
+    ViewData["Title"] = "Cấu hình & Tự động xếp Thời khóa biểu";
+    var dsHocKy = ViewBag.DanhSachHocKy as List<QLHS.Models.HocKy>;
+    var dsBanTkb = ViewBag.DanhSachBanTkb as List<QLHS.Models.BanTkb>;
+    var banTkbHienTai = ViewBag.BanTkbHienTai as QLHS.Models.BanTkb;
+    var dsLop = ViewBag.DanhSachLop as List<QLHS.Models.LopHoc>;
+    var allLopInNam = ViewBag.AllLopInNam as List<QLHS.Models.LopHoc>;
+    var allGiaoVien = ViewBag.AllGiaoVien as List<QLHS.Models.GiaoVien>;
+    var allKhoi = ViewBag.AllKhoi as List<QLHS.Models.KhoiLop>;
+    var lopHocHienTai = ViewBag.LopHocHienTai as QLHS.Models.LopHoc;
+    var giaoVienHienTai = ViewBag.GiaoVienHienTai as QLHS.Models.GiaoVien;
+    int selectedBanTkbId = ViewBag.SelectedBanTkbId ?? 0;
+    int selectedLopId = ViewBag.SelectedLopId ?? 0;
+    int selectedGvId = ViewBag.SelectedGiaoVienId ?? 0;
+    string viewType = ViewBag.ViewType as string ?? "class";
+
+    QLHS.Models.ThoiKhoaBieu? GetSlot(int thu, int tiet, string buoi)
+    {
+        if (Model == null) return null;
+        return Model.FirstOrDefault(t => 
+            t.KhungTiet != null && 
+            t.KhungTiet.ThuTrongTuan == thu && 
+            t.KhungTiet.TietHoc == tiet && 
+            t.KhungTiet.BuoiHoc != null && 
+            t.KhungTiet.BuoiHoc.ToLower() == buoi.ToLower());
+    }
+}
+
+@Html.AntiForgeryToken()
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h3 class="fw-bold text-primary mb-1">
+            <i class="bi bi-calendar3-week me-2"></i>CẤU HÌNH & XẾP THỜI KHÓA BIỂU TỰ ĐỘNG
+        </h3>
+        <p class="text-muted mb-0">Hỗ trợ xếp theo phạm vi lớp (3A, 4B...), khóa Chào cờ & Sinh hoạt lớp, tinh chỉnh kéo thả nháp và tự động giải OR-Tools.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap d-print-none">
+        <button type="button" class="btn btn-outline-primary fw-bold shadow-sm" onclick="showModalTaoBanTkb()">
+            <i class="bi bi-plus-circle me-1"></i>Tạo Bản TKB Mới
+        </button>
+        @if (banTkbHienTai != null)
+        {
+            <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="openConfigModal()">
+                <i class="bi bi-sliders me-1"></i>1. Cấu Hình Đợt Xếp
+            </button>
+            <button type="button" class="btn btn-info fw-bold text-white shadow-sm" onclick="triggerPreCheck()">
+                <i class="bi bi-shield-check me-1"></i>2. Kiểm Tra Trước Khi Chốt
+            </button>
+            <button type="button" class="btn btn-secondary fw-bold shadow-sm" onclick="triggerChotDauVao()">
+                <i class="bi bi-lock me-1"></i>3. Chốt Đầu Vào (BGH)
+            </button>
+            <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="triggerAutoSchedule(@banTkbHienTai.Id)">
+                <i class="bi bi-magic me-1"></i>4. Chạy Xếp OR-Tools
+            </button>
+            <button type="button" class="btn btn-warning fw-bold text-dark shadow-sm" onclick="duyetBanTkb(@banTkbHienTai.Id)">
+                <i class="bi bi-check2-all me-1"></i>5. Duyệt Lịch
+            </button>
+            <button type="button" class="btn btn-danger fw-bold shadow-sm" onclick="congBoBanTkb(@banTkbHienTai.Id)">
+                <i class="bi bi-broadcast me-1"></i>6. Công Bố Toàn Trường
+            </button>
+        }
+    </div>
+</div>
+
+<!-- BỘ LỌC XEM LỊCH THEO LỚP HOẶC GIÁO VIÊN -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 d-print-none">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-muted">Chọn Bản Thời Khóa Biểu:</label>
+                <select name="banTkbId" class="form-select fw-bold text-dark" onchange="this.form.submit()">
+                    @if (dsBanTkb != null && dsBanTkb.Any())
+                    {
+                        foreach (var b in dsBanTkb)
+                        {
+                            <option value="@b.Id" selected="@(b.Id == selectedBanTkbId)">
+                                [v@b.SoPhienBan] @(b.HocKy?.NamHoc?.TenNamHoc) - Học kỳ @b.HocKy?.SoHocKy (@b.TrangThai)
+                            </option>
+                        }
+                    }
+                    else
+                    {
+                        <option value="0">--- Chưa có bản TKB nào ---</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-muted">Chế độ xem:</label>
+                <select name="viewType" class="form-select fw-bold" onchange="this.form.submit()">
+                    <option value="class" selected="@(viewType == "class")">Xem theo Lớp Học</option>
+                    <option value="teacher" selected="@(viewType == "teacher")">Xem theo Giáo Viên</option>
+                </select>
+            </div>
+            @if (viewType == "teacher")
+            {
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small text-muted">Chọn Giáo Viên:</label>
+                    <select name="giaoVienId" class="form-select fw-bold text-info" onchange="this.form.submit()">
+                        @if (allGiaoVien != null && allGiaoVien.Any())
+                        {
+                            foreach (var gv in allGiaoVien)
+                            {
+                                <option value="@gv.Id" selected="@(gv.Id == selectedGvId)">
+                                    @gv.HoTen
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+            }
+            else
+            {
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small text-muted">Chọn Lớp Học:</label>
+                    <select name="lopHocId" class="form-select fw-bold text-primary" onchange="this.form.submit()">
+                        @if (dsLop != null && dsLop.Any())
+                        {
+                            foreach (var lop in dsLop)
+                            {
+                                <option value="@lop.Id" selected="@(lop.Id == selectedLopId)">
+                                    Lớp @lop.TenLop - GVCN: @(lop.GiaoVienChuNhiem != null ? lop.GiaoVienChuNhiem.HoTen : "Chưa có")
+                                </option>
+                            }
+                        }
+                        else
+                        {
+                            <option value="0">--- Không có lớp trong đợt ---</option>
+                        }
+                    </select>
+                </div>
+            }
+            <div class="col-md-2 text-end">
+                <button type="button" class="btn btn-outline-secondary w-100" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i>In Lịch
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (banTkbHienTai != null)
+{
+    <!-- THÔNG TIN TRẠNG THÁI BẢN TKB -->
+    <div class="alert alert-info border-0 rounded-3 shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <strong>Trạng thái Bản TKB:</strong> 
+            @switch (banTkbHienTai.TrangThai)
+            {
+                case "NHAP_DAU_VAO":
+                    <span class="badge bg-secondary fs-6 ms-1">1. NHẬP ĐẦU VÀO</span>
+                    break;
+                case "DA_XAC_NHAN":
+                    <span class="badge bg-primary fs-6 ms-1">2. ĐÃ CHỐT ĐẦU VÀO</span>
+                    break;
+                case "DANG_XEP":
+                    <span class="badge bg-warning text-dark fs-6 ms-1"><span class="spinner-border spinner-border-sm me-1"></span>ĐANG XẾP...</span>
+                    break;
+                case "LICH_NHAP":
+                    <span class="badge bg-success fs-6 ms-1">3. LỊCH NHÁP (CHO PHÉP KÉO THẢ)</span>
+                    break;
+                case "DA_DUYET":
+                    <span class="badge bg-success fs-6 ms-1">4. ĐÃ DUYỆT</span>
+                    break;
+                case "DA_CONG_BO":
+                    <span class="badge bg-danger fs-6 ms-1">5. ĐÃ CÔNG BỐ TOÀN TRƯỜNG</span>
+                    break;
+                case "XEP_THAT_BAI":
+                    <span class="badge bg-danger fs-6 ms-1">XẾP THẤT BÀI</span>
+                    break;
+                default:
+                    <span class="badge bg-dark fs-6 ms-1">@banTkbHienTai.TrangThai</span>
+                    break;
+            }
+            <span class="text-muted ms-3 small">
+                Hiệu lực: <strong>@(banTkbHienTai.TuNgay?.ToString("dd/MM/yyyy") ?? "---")</strong> đến <strong>@(banTkbHienTai.DenNgay?.ToString("dd/MM/yyyy") ?? "Vô thời hạn")</strong>
+            </span>
+        </div>
+        @if (!string.IsNullOrEmpty(banTkbHienTai.BaoCaoXepLich))
+        {
+            <div class="small text-dark mt-1 w-100 p-2 bg-light rounded border">
+                <i class="bi bi-info-circle me-1 text-primary"></i><strong>Nhật ký bộ giải:</strong> @banTkbHienTai.BaoCaoXepLich
+            </div>
+        }
+    </div>
+
+    <!-- KHU VỰC KÉO THẢ TINH CHỈNH LỊCH NHÁP (NẾU Ở TRẠNG THÁI LICH_NHAP) -->
+    @if (banTkbHienTai.TrangThai == "LICH_NHAP")
+    {
+        <div class="card border-warning shadow-sm mb-4 bg-warning bg-opacity-10 d-print-none">
+            <div class="card-body p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h6 class="fw-bold text-dark mb-1"><i class="bi bi-arrows-move me-2 text-warning"></i>CHẾ ĐỘ TINH CHỈNH LỊCH NHÁP</h6>
+                    <small class="text-muted">Kéo thả các tiết giữa các ô, hoặc thả xuống thùng "CHƯA XẾP". Chào cờ & Sinh hoạt lớp bị khóa cố định.</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="reSolveRemaining(@banTkbHienTai.Id)">
+                        <i class="bi bi-arrow-repeat me-1"></i>Xếp Lại Các Tiết Còn Thiếu
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- BẢNG LƯỚI THỜI KHÓA BIỂU -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0 text-dark">
+                @if (viewType == "teacher")
+                {
+                    <span><i class="bi bi-person-badge me-2 text-info"></i>Lịch giảng dạy: Thầy/Cô @(giaoVienHienTai?.HoTen ?? "---")</span>
+                }
+                else
+                {
+                    <span><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Lịch học: Lớp @(lopHocHienTai?.TenLop ?? "---") (GVCN: @(lopHocHienTai?.GiaoVienChuNhiem?.HoTen ?? "Chưa có"))</span>
+                }
+            </h5>
+            <span class="badge bg-light text-dark border">
+                Tổng số tiết: <strong>@(Model?.Count() ?? 0)</strong> tiết/tuần
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered text-center align-middle mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th style="width: 100px;">Buổi</th>
+                        <th style="width: 80px;">Tiết</th>
+                        <th>Thứ 2</th>
+                        <th>Thứ 3</th>
+                        <th>Thứ 4</th>
+                        <th>Thứ 5</th>
+                        <th>Thứ 6</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- SÁNG -->
+                    @for (int tiet = 1; tiet <= 4; tiet++)
+                    {
+                        <tr>
+                            @if (tiet == 1)
+                            {
+                                <td rowspan="4" class="fw-bold bg-light align-middle text-primary">
+                                    <i class="bi bi-sun-fill me-1 text-warning"></i>SÁNG
+                                </td>
+                            }
+                            <td class="fw-bold bg-light">Tiết @tiet</td>
+                            @for (int thu = 2; thu <= 6; thu++)
+                            {
+                                var item = GetSlot(thu, tiet, "SANG");
+                                bool isChaoCo = (thu == 2 && tiet == 1);
+                                if (item != null)
+                                {
+                                    <td class="@(isChaoCo ? "bg-danger bg-opacity-10 border-danger" : "bg-primary bg-opacity-10") p-2 slot-cell" 
+                                        data-slot-id="@item.KhungTietId" data-thu="@thu" data-tiet="@tiet" data-buoi="SANG"
+                                        ondragover="onDragOver(event)" ondrop="onDropSlot(event, @item.KhungTietId)">
+                                        <div class="fw-bold @(isChaoCo ? "text-danger" : "text-primary")">
+                                            @if (isChaoCo)
+                                            {
+                                                <i class="bi bi-flag-fill me-1"></i><span>CHÀO CỜ</span>
+                                            }
+                                            else
+                                            {
+                                                @item.MonHoc?.TenMon
+                                            }
+                                        </div>
+                                        <div class="small text-muted">
+                                            @if (viewType == "teacher")
+                                            {
+                                                <i class="bi bi-door-open me-1"></i>@(item.LopHoc?.TenLop ?? "---")
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-person me-1"></i>@(item.GiaoVien?.HoTen ?? "---")
+                                            }
+                                        </div>
+                                        @if (isChaoCo)
+                                        {
+                                            <span class="badge bg-danger mt-1" style="font-size: 0.65rem;"><i class="bi bi-lock-fill me-1"></i>CỐ ĐỊNH</span>
+                                        }
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td class="text-muted small bg-white slot-cell" data-thu="@thu" data-tiet="@tiet" data-buoi="SANG"
+                                        ondragover="onDragOver(event)" ondrop="onDropEmpty(event, @thu, @tiet, 'SANG')">
+                                        ---
+                                    </td>
+                                }
+                            }
+                        </tr>
+                    }
+
+                    <!-- PHÂN CÁCH NGHỈ TRƯA -->
+                    <tr class="table-secondary">
+                        <td colspan="7" class="py-1 text-muted small fw-semibold">--- NGHỈ TRƯA ---</td>
+                    </tr>
+
+                    <!-- CHIỀU -->
+                    @for (int tiet = 1; tiet <= 3; tiet++)
+                    {
+                        <tr>
+                            @if (tiet == 1)
+                            {
+                                <td rowspan="3" class="fw-bold bg-light align-middle text-warning">
+                                    <i class="bi bi-moon-stars-fill me-1 text-warning"></i>CHIỀU
+                                </td>
+                            }
+                            <td class="fw-bold bg-light">Tiết @tiet</td>
+                            @for (int thu = 2; thu <= 6; thu++)
+                            {
+                                var item = GetSlot(thu, tiet, "CHIEU");
+                                bool isSinhHoat = (thu == 6 && tiet == 3);
+                                if (item != null)
+                                {
+                                    <td class="@(isSinhHoat ? "bg-success bg-opacity-10 border-success" : "bg-warning bg-opacity-10") p-2 slot-cell"
+                                        data-slot-id="@item.KhungTietId" data-thu="@thu" data-tiet="@tiet" data-buoi="CHIEU"
+                                        ondragover="onDragOver(event)" ondrop="onDropSlot(event, @item.KhungTietId)">
+                                        <div class="fw-bold @(isSinhHoat ? "text-success" : "text-dark")">
+                                            @if (isSinhHoat)
+                                            {
+                                                <i class="bi bi-people-fill me-1"></i><span>SINH HOẠT LỚP</span>
+                                            }
+                                            else
+                                            {
+                                                @item.MonHoc?.TenMon
+                                            }
+                                        </div>
+                                        <div class="small text-muted">
+                                            @if (viewType == "teacher")
+                                            {
+                                                <i class="bi bi-door-open me-1"></i>@(item.LopHoc?.TenLop ?? "---")
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-person me-1"></i>@(item.GiaoVien?.HoTen ?? "---")
+                                            }
+                                        </div>
+                                        @if (isSinhHoat)
+                                        {
+                                            <span class="badge bg-success mt-1" style="font-size: 0.65rem;"><i class="bi bi-lock-fill me-1"></i>CỐ ĐỊNH (GVCN)</span>
+                                        }
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td class="text-muted small bg-white slot-cell" data-thu="@thu" data-tiet="@tiet" data-buoi="CHIEU"
+                                        ondragover="onDragOver(event)" ondrop="onDropEmpty(event, @thu, @tiet, 'CHIEU')">
+                                        ---
+                                    </td>
+                                }
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ======================================================== -->
+<!-- MODAL 1: CẤU HÌNH ĐỢT XẾP (ĐA NĂNG, TỔNG HỢP THEO YÊU CẦU) -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalConfigDotXep" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-sliders me-2"></i>CẤU HÌNH ĐỢT XẾP THỜI KHÓA BIỂU
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Nav Tabs -->
+                <ul class="nav nav-tabs nav-fill mb-3" id="configTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active fw-bold" id="tab-lop-tab" data-bs-toggle="tab" data-bs-target="#tab-lop">
+                            <i class="bi bi-door-open me-1"></i>1. Chọn Lớp Học
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" id="tab-mon-tab" data-bs-toggle="tab" data-bs-target="#tab-mon">
+                            <i class="bi bi-journal-bookmark me-1"></i>2. Bảng Lớp – Môn (Số tiết, Min/Max)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" id="tab-gv-tab" data-bs-toggle="tab" data-bs-target="#tab-gv">
+                            <i class="bi bi-person-badge me-1"></i>3. Giáo Viên & Giờ Bận
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link fw-bold" id="tab-buoi-tab" data-bs-toggle="tab" data-bs-target="#tab-buoi">
+                            <i class="bi bi-calendar2-range me-1"></i>4. Buổi Học & Hoạt Động Cố Định
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="configTabsContent">
+                    <!-- TAB 1: CHỌN LỚP HỌC (LỌC THEO KHỐI, CHỌN TỪNG LỚP, CẢ KHỐI HOẶC NHIỀU KHỐI) -->
+                    <div class="tab-pane fade show active" id="tab-lop">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="fw-bold text-muted small">Lọc theo Khối:</span>
+                                <select id="filterKhoiSelect" class="form-select form-select-sm" style="width: 150px;" onchange="filterLopByKhoi()">
+                                    <option value="ALL">-- Tất cả khối --</option>
+                                    @if (allKhoi != null)
+                                    {
+                                        foreach (var k in allKhoi)
+                                        {
+                                            <option value="@k.Id">Khối @k.SoKhoi</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllLop(true)">Chọn tất cả khối đang lọc</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAllLop(false)">Bỏ chọn tất cả</button>
+                            </div>
+                        </div>
+
+                        <div class="row g-2" id="lopListContainer">
+                            <!-- Render bằng JS -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: BẢNG LỚP – MÔN -->
+                    <div class="tab-pane fade" id="tab-mon">
+                        <div class="alert alert-light border small mb-3">
+                            <i class="bi bi-info-circle me-1 text-primary"></i>Mỗi dòng lớp–môn gồm <strong>Số tiết chuẩn/tuần</strong>, <strong>Min/Max ngày</strong> (cộng cả sáng và chiều), <strong>Min/Max tuần</strong>. Nếu bật <strong>Chế độ linh hoạt</strong> mới cho phép chỉnh số tiết khác số chuẩn.
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Lớp</th>
+                                        <th>Môn Học</th>
+                                        <th style="width: 90px;">Số Chuẩn</th>
+                                        <th style="width: 100px;">Số Xếp</th>
+                                        <th style="width: 90px;">Min/Max Ngày</th>
+                                        <th style="width: 90px;">Min/Max Tuần</th>
+                                        <th style="width: 100px;">Linh Hoạt?</th>
+                                        <th>Giáo viên phụ trách</th>
+                                        <th>Xác nhận</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lopMonTableBody">
+                                    <!-- Render bằng JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: GIÁO VIÊN & GIỜ BẬN -->
+                    <div class="tab-pane fade" id="tab-gv">
+                        <div class="alert alert-light border small mb-3">
+                            <i class="bi bi-info-circle me-1 text-primary"></i>Chọn giáo viên tham gia đợt. Mỗi lớp–môn có đúng một giáo viên phụ trách toàn bộ số tiết. Hiển thị giờ bận, phân công hợp lệ và tình trạng xác nhận.
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;" class="text-center">
+                                            <input type="checkbox" id="checkAllGv" onchange="toggleSelectAllGv(this.checked)" />
+                                        </th>
+                                        <th>Họ và Tên Giáo Viên</th>
+                                        <th>Phân công trong phạm vi lớp đã chọn</th>
+                                        <th>Trạng thái xác nhận</th>
+                                        <th>Giờ bận đã đăng ký</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gvTableBody">
+                                    <!-- Render bằng JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: BUỔI HỌC & HOẠT ĐỘNG CỐ ĐỊNH -->
+                    <div class="tab-pane fade" id="tab-buoi">
+                        <div class="card border mb-3">
+                            <div class="card-header bg-light fw-bold text-dark">
+                                <i class="bi bi-flag me-1 text-danger"></i>Khóa Chào cờ & Sinh hoạt lớp
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="chkChaoCoVaoHdtn" checked>
+                                            <label class="form-check-label fw-bold" for="chkChaoCoVaoHdtn">
+                                                Tính tiết Chào cờ vào số tiết môn Hoạt động trải nghiệm
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Dành tiết đầu thứ Hai cho Chào cờ. Hoạt động tập thể không tạo lỗi trùng giáo viên.</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="chkSinhHoatVaoHdtn" checked>
+                                            <label class="form-check-label fw-bold" for="chkSinhHoatVaoHdtn">
+                                                Tính tiết Sinh hoạt lớp vào số tiết môn Hoạt động trải nghiệm
+                                            </label>
+                                        </div>
+                                        <small class="text-muted d-block mt-1">Dành tiết cuối thứ Sáu cho Sinh hoạt lớp, do Giáo viên chủ nhiệm phụ trách và kiểm tra trùng giờ GVCN.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border">
+                            <div class="card-header bg-light fw-bold text-dark">
+                                <i class="bi bi-calendar-week me-1 text-primary"></i>Buổi học áp dụng (Thứ Hai đến Thứ Sáu)
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered text-center align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Thứ</th>
+                                                <th>Buổi</th>
+                                                <th>Có học?</th>
+                                                <th>Mô tả</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="buoiHocTableBody">
+                                            <!-- Render bằng JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary fw-bold" onclick="saveConfigToServer()">
+                    <i class="bi bi-save me-1"></i>Lưu Cấu Hình Đợt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL 2: TẠO BẢN TKB MỚI -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalTaoBanTkb" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2"></i>Tạo Bản TKB Mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-muted">Chọn Học Kỳ:</label>
+                    <select id="newHocKyId" class="form-select">
+                        @if (dsHocKy != null)
+                        {
+                            foreach (var h in dsHocKy)
+                            {
+                                <option value="@h.Id">@h.NamHoc?.TenNamHoc - Học kỳ @h.SoHocKy</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold small text-muted">Từ Ngày Áp Dụng:</label>
+                        <input type="date" id="newTuNgay" class="form-control" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold small text-muted">Đến Ngày Áp Dụng:</label>
+                        <input type="date" id="newDenNgay" class="form-control" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary fw-bold" onclick="submitTaoBanTkb()">Khởi Tạo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL 3: BÁO CÁO KIỂM TRA ĐẦU VÀO TRƯỚC KHI CHỐT -->
+<!-- ======================================================== -->
+<div class="modal fade" id="modalPreCheckReport" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-shield-check me-2"></i>BÁO CÁO KIỂM TRA ĐẦU VÀO TRƯỚC KHI CHỐT
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="preCheckReportContent">
+                <!-- Nội dung báo cáo do JS điền -->
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary fw-bold" id="btnChotNgayTrongModal" onclick="triggerChotDauVao()">
+                    <i class="bi bi-lock me-1"></i>BGH Chốt Đầu Vào Ngay
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentBanTkbId = @selectedBanTkbId;
+let serverData = null;
+
+function getAntiForgeryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+}
+
+function showModalTaoBanTkb() {
+    new bootstrap.Modal(document.getElementById('modalTaoBanTkb')).show();
+}
+
+function submitTaoBanTkb() {
+    const hocKyId = document.getElementById('newHocKyId').value;
+    const tuNgay = document.getElementById('newTuNgay').value;
+    const denNgay = document.getElementById('newDenNgay').value;
+
+    fetch('/Admin/ThoiKhoaBieu/CreateBanTkb', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: `hocKyId=${hocKyId}&tuNgay=${tuNgay}&denNgay=${denNgay}`
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.href = '/Admin/ThoiKhoaBieu?banTkbId=' + data.banTkbId;
+    });
+}
+
+function openConfigModal() {
+    if (!currentBanTkbId) return;
+
+    fetch('/Admin/ThoiKhoaBieu/GetConfigData?banTkbId=' + currentBanTkbId)
+        .then(res => res.json())
+        .then(res => {
+            if (!res.success) {
+                alert(res.message);
+                return;
+            }
+            serverData = res;
+            renderConfigTabs();
+            new bootstrap.Modal(document.getElementById('modalConfigDotXep')).show();
+        });
+}
+
+function renderConfigTabs() {
+    if (!serverData) return;
+
+    const saved = serverData.currentConfig || {};
+    const savedLopIds = saved.lop_ids || serverData.danhSachLop.map(l => l.id);
+    const savedGvIds = saved.giao_vien_ids || serverData.danhSachGiaoVien.map(g => g.id);
+
+    // 1. Render Danh sách lớp
+    const lopContainer = document.getElementById('lopListContainer');
+    lopContainer.innerHTML = '';
+    serverData.danhSachLop.forEach(lop => {
+        const isChecked = savedLopIds.includes(lop.id) ? 'checked' : '';
+        const col = document.createElement('div');
+        col.className = 'col-md-3 col-sm-6 lop-item';
+        col.setAttribute('data-khoi-id', lop.khoiId);
+        col.innerHTML = `
+            <div class="card border p-2 h-100 shadow-sm">
+                <div class="form-check">
+                    <input class="form-check-input lop-checkbox" type="checkbox" value="${lop.id}" id="chk_lop_${lop.id}" ${isChecked} onchange="onLopSelectionChanged()">
+                    <label class="form-check-label fw-bold text-dark" for="chk_lop_${lop.id}">
+                        Lớp ${lop.tenLop} <span class="badge bg-light text-primary border ms-1">Khối ${lop.soKhoi}</span>
+                        <div class="small text-muted fw-normal">GVCN: ${lop.tenGvcn}</div>
+                    </label>
+                </div>
+            </div>
+        `;
+        lopContainer.appendChild(col);
+    });
+
+    // 2. Render Tab Lớp - Môn
+    renderLopMonTab(saved.lop_mon_settings);
+
+    // 3. Render Tab Giáo Viên
+    renderGiaoVienTab(savedGvIds);
+
+    // 4. Render Tab Buổi học
+    renderBuoiHocTab(saved.buoi_hocs);
+
+    // Checkbox HĐTN
+    document.getElementById('chkChaoCoVaoHdtn').checked = saved.tinh_chao_co_vao_hdtn !== false;
+    document.getElementById('chkSinhHoatVaoHdtn').checked = saved.tinh_sinh_hoat_vao_hdtn !== false;
+}
+
+function filterLopByKhoi() {
+    const val = document.getElementById('filterKhoiSelect').value;
+    document.querySelectorAll('.lop-item').forEach(el => {
+        if (val === 'ALL' || el.getAttribute('data-khoi-id') === val) {
+            el.style.display = '';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}
+
+function selectAllLop(check) {
+    document.querySelectorAll('.lop-checkbox').forEach(chk => {
+        if (chk.closest('.lop-item').style.display !== 'none') {
+            chk.checked = check;
+        }
+    });
+    onLopSelectionChanged();
+}
+
+function onLopSelectionChanged() {
+    renderGiaoVienTab();
+    renderLopMonTab();
+}
+
+function renderLopMonTab(savedSettings) {
+    const targetLopIds = getSelectedLopIds();
+    const tbody = document.getElementById('lopMonTableBody');
+    tbody.innerHTML = '';
+
+    const currentSaved = savedSettings || [];
+
+    serverData.danhSachLop.filter(l => targetLopIds.includes(l.id)).forEach(lop => {
+        const pcs = serverData.phanCongs.filter(p => p.lopId === lop.id);
+
+        pcs.forEach(pc => {
+            const setting = currentSaved.find(s => s.lop_hoc_id === lop.id && s.mon_hoc_id === pc.monId);
+            const soChuan = setting ? setting.so_tiet_chuan : pc.soTietTuan;
+            const soXep = setting ? setting.so_tiet_tuan : soChuan;
+            const minN = setting ? setting.min_tiet_ngay : 0;
+            const maxN = setting ? setting.max_tiet_ngay : 2;
+            const minT = setting ? setting.min_tiet_tuan : 0;
+            const maxT = setting ? setting.max_tiet_tuan : 10;
+            const linhHoat = setting ? setting.che_do_linh_hoat : false;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="fw-bold">${pc.tenLop}</td>
+                <td class="text-primary fw-semibold">${pc.tenMon}</td>
+                <td><span class="badge bg-secondary">${soChuan}</span></td>
+                <td>
+                    <input type="number" class="form-control form-control-sm text-center lop-mon-tiet" data-lop-id="${lop.id}" data-mon-id="${pc.monId}" data-gv-id="${pc.giaoVienId}" value="${soXep}" min="1" max="15" ${!linhHoat ? 'readonly' : ''}>
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center p-1 lop-mon-min-ngay" value="${minN}" min="0" max="4" title="Tối thiểu/ngày">
+                        <span class="input-group-text p-1">-</span>
+                        <input type="number" class="form-control text-center p-1 lop-mon-max-ngay" value="${maxN}" min="1" max="4" title="Tối đa/ngày">
+                    </div>
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control text-center p-1 lop-mon-min-tuan" value="${minT}" min="0" max="15" title="Min tuần">
+                        <span class="input-group-text p-1">-</span>
+                        <input type="number" class="form-control text-center p-1 lop-mon-max-tuan" value="${maxT}" min="1" max="15" title="Max tuần">
+                    </div>
+                </td>
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input lop-mon-linh-hoat" ${linhHoat ? 'checked' : ''} onchange="toggleLinhHoat(this)">
+                </td>
+                <td><span class="fw-semibold text-dark">${pc.tenGiaoVien}</span></td>
+                <td>
+                    ${pc.trangThaiXacNhan === 'DA_XAC_NHAN' 
+                        ? '<span class="badge bg-success">Đã xác nhận</span>' 
+                        : (pc.trangThaiXacNhan === 'CAN_DIEU_CHINH' ? `<span class="badge bg-danger" title="${pc.yKien}">Cần điều chỉnh</span>` : '<span class="badge bg-warning text-dark">Chờ xác nhận</span>')}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function toggleLinhHoat(chk) {
+    const row = chk.closest('tr');
+    const inputTiet = row.querySelector('.lop-mon-tiet');
+    inputTiet.readOnly = !chk.checked;
+    if (!chk.checked) {
+        // Khôi phục về số chuẩn
+        const soChuan = parseInt(row.cells[2].innerText);
+        inputTiet.value = soChuan;
+    }
+}
+
+function renderGiaoVienTab(selectedGvIds) {
+    const targetLopIds = getSelectedLopIds();
+    const gvTbody = document.getElementById('gvTableBody');
+    gvTbody.innerHTML = '';
+
+    const currentCheckedGv = selectedGvIds || Array.from(document.querySelectorAll('.gv-checkbox:checked')).map(c => parseInt(c.value));
+
+    serverData.danhSachGiaoVien.forEach(gv => {
+        const pcs = serverData.phanCongs.filter(p => p.giaoVienId === gv.id && targetLopIds.includes(p.lopId));
+        const gbs = serverData.gioBans.filter(g => g.giaoVienId === gv.id);
+
+        const isChecked = currentCheckedGv.includes(gv.id) ? 'checked' : '';
+        const pcText = pcs.length > 0 
+            ? pcs.map(p => `<span class="badge bg-light text-dark border me-1">${p.tenLop}: ${p.tenMon} (${p.soTietTuan}t)</span>`).join('') 
+            : '<span class="text-muted small">Không có phân công trong lớp đã chọn</span>';
+
+        let xnBadge = '<span class="badge bg-secondary">Không có</span>';
+        if (pcs.length > 0) {
+            const hasCanChinh = pcs.some(p => p.trangThaiXacNhan === 'CAN_DIEU_CHINH');
+            const allDaXn = pcs.every(p => p.trangThaiXacNhan === 'DA_XAC_NHAN');
+            if (hasCanChinh) {
+                xnBadge = '<span class="badge bg-danger">Yêu cầu chỉnh</span>';
+            } else if (allDaXn) {
+                xnBadge = '<span class="badge bg-success">Đã xác nhận đủ</span>';
+            } else {
+                xnBadge = '<span class="badge bg-warning text-dark">Chờ xác nhận</span>';
+            }
+        }
+
+        const gbText = gbs.length > 0
+            ? gbs.map(g => `<span class="badge ${g.batBuoc ? 'bg-danger' : 'bg-warning text-dark'} me-1" title="${g.ghiChu}">T${g.thu} ${g.buoi} t${g.tiet}${g.batBuoc ? ' (Bắt buộc)' : ' (Tránh)'}</span>`).join('')
+            : '<span class="text-muted small">Trống</span>';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-center">
+                <input type="checkbox" class="gv-checkbox" value="${gv.id}" ${isChecked} />
+            </td>
+            <td class="fw-bold">${gv.hoTen}</td>
+            <td>${pcText}</td>
+            <td>${xnBadge}</td>
+            <td>${gbText}</td>
+        `;
+        gvTbody.appendChild(tr);
+    });
+}
+
+function toggleSelectAllGv(check) {
+    document.querySelectorAll('.gv-checkbox').forEach(c => c.checked = check);
+}
+
+function renderBuoiHocTab(savedBuoiHocs) {
+    const tbody = document.getElementById('buoiHocTableBody');
+    tbody.innerHTML = '';
+
+    const days = [
+        { thu: 2, tenThu: 'Thứ 2' },
+        { thu: 3, tenThu: 'Thứ 3' },
+        { thu: 4, tenThu: 'Thứ 4' },
+        { thu: 5, tenThu: 'Thứ 5' },
+        { thu: 6, tenThu: 'Thứ 6' }
+    ];
+
+    days.forEach(d => {
+        ['SANG', 'CHIEU'].forEach(buoi => {
+            const isSavedCoHoc = savedBuoiHocs 
+                ? savedBuoiHocs.some(b => b.thu === d.thu && b.buoi.toUpperCase() === buoi && b.co_hoc) 
+                : true;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="fw-bold">${d.tenThu}</td>
+                <td class="${buoi === 'SANG' ? 'text-primary' : 'text-warning'} fw-bold">${buoi}</td>
+                <td>
+                    <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input buoi-co-hoc-chk" type="checkbox" data-thu="${d.thu}" data-buoi="${buoi}" ${isSavedCoHoc ? 'checked' : ''}>
+                    </div>
+                </td>
+                <td class="small text-muted">${d.thu === 2 && buoi === 'SANG' ? 'Có tiết Chào cờ (Tiết 1)' : (d.thu === 6 && buoi === 'CHIEU' ? 'Có tiết Sinh hoạt lớp (Tiết cuối)' : 'Tiết học thông thường')}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function getSelectedLopIds() {
+    return Array.from(document.querySelectorAll('.lop-checkbox:checked')).map(c => parseInt(c.value));
+}
+
+function collectConfigFromUI() {
+    const lopIds = getSelectedLopIds();
+    const gvIds = Array.from(document.querySelectorAll('.gv-checkbox:checked')).map(c => parseInt(c.value));
+
+    const buoiHocs = [];
+    document.querySelectorAll('.buoi-co-hoc-chk').forEach(chk => {
+        buoiHocs.push({
+            thu: parseInt(chk.getAttribute('data-thu')),
+            buoi: chk.getAttribute('data-buoi'),
+            co_hoc: chk.checked
+        });
+    });
+
+    const lopMonSettings = [];
+    document.querySelectorAll('.lop-mon-tiet').forEach(inp => {
+        const lId = parseInt(inp.getAttribute('data-lop-id'));
+        const mId = parseInt(inp.getAttribute('data-mon-id'));
+        const gvId = parseInt(inp.getAttribute('data-gv-id'));
+        const row = inp.closest('tr');
+        const soChuan = parseInt(row.cells[2].innerText) || 0;
+        const soXep = parseInt(inp.value) || 0;
+        const minN = parseInt(row.querySelector('.lop-mon-min-ngay').value) || 0;
+        const maxN = parseInt(row.querySelector('.lop-mon-max-ngay').value) || 2;
+        const minT = parseInt(row.querySelector('.lop-mon-min-tuan').value) || 0;
+        const maxT = parseInt(row.querySelector('.lop-mon-max-tuan').value) || 10;
+        const linhHoat = row.querySelector('.lop-mon-linh-hoat').checked;
+
+        lopMonSettings.push({
+            lop_hoc_id: lId,
+            mon_hoc_id: mId,
+            giao_vien_id: gvId,
+            so_tiet_chuan: soChuan,
+            so_tiet_tuan: soXep,
+            min_tiet_ngay: minN,
+            max_tiet_ngay: maxN,
+            min_tiet_tuan: minT,
+            max_tiet_tuan: maxT,
+            che_do_linh_hoat: linhHoat
+        });
+    });
+
+    return {
+        lop_ids: lopIds,
+        giao_vien_ids: gvIds,
+        buoi_hocs: buoiHocs,
+        lop_mon_settings: lopMonSettings,
+        tinh_chao_co_vao_hdtn: document.getElementById('chkChaoCoVaoHdtn').checked,
+        tinh_sinh_hoat_vao_hdtn: document.getElementById('chkSinhHoatVaoHdtn').checked
+    };
+}
+
+function saveConfigToServer() {
+    const config = collectConfigFromUI();
+    fetch('/Admin/ThoiKhoaBieu/LuuCauHinhDot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: JSON.stringify({
+            banTkbId: currentBanTkbId,
+            config: config
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalConfigDotXep'))?.hide();
+            location.reload();
+        }
+    });
+}
+
+function triggerPreCheck() {
+    let config = null;
+    if (document.getElementById('modalConfigDotXep').classList.contains('show')) {
+        config = collectConfigFromUI();
+    }
+
+    fetch('/Admin/ThoiKhoaBieu/ValidatePreCheck', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: JSON.stringify({
+            banTkbId: currentBanTkbId,
+            config: config
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        const content = document.getElementById('preCheckReportContent');
+        let html = '';
+
+        if (data.isValid) {
+            html += `<div class="alert alert-success d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill fs-4 text-success"></i>
+                <div>
+                    <h6 class="mb-0 fw-bold">TẤT CẢ ĐIỀU KIỆN ĐÃ HỢP LỆ!</h6>
+                    <small>Đã kiểm tra ${data.tongSoLopChon} lớp học và ${data.tongSoGiaoVienChon} giáo viên. Chào cờ & Sinh hoạt lớp hợp lệ. Sẵn sàng chốt đầu vào!</small>
+                </div>
+            </div>`;
+        } else {
+            html += `<div class="alert alert-danger d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                <div>
+                    <h6 class="mb-0 fw-bold">PHÁT HIỆN LỖI CHẶN (${data.errors.length} lỗi):</h6>
+                    <small>Cần điều chỉnh trước khi có thể chốt đầu vào.</small>
+                </div>
+            </div>`;
+
+            html += `<div class="list-group mb-3">`;
+            data.errors.forEach(err => {
+                html += `<div class="list-group-item list-group-item-danger small fw-semibold"><i class="bi bi-x-circle me-2"></i>${err}</div>`;
+            });
+            html += `</div>`;
+        }
+
+        if (data.warnings && data.warnings.length > 0) {
+            html += `<h6 class="fw-bold text-warning mt-3"><i class="bi bi-exclamation-circle me-1"></i>Cảnh Báo Chuyên Môn (${data.warnings.length}):</h6>`;
+            html += `<div class="list-group mb-3">`;
+            data.warnings.forEach(w => {
+                html += `<div class="list-group-item list-group-item-warning small"><i class="bi bi-info-circle me-2"></i>${w}</div>`;
+            });
+            html += `</div>`;
+        }
+
+        content.innerHTML = html;
+        document.getElementById('btnChotNgayTrongModal').style.display = data.isValid ? '' : 'none';
+        new bootstrap.Modal(document.getElementById('modalPreCheckReport')).show();
+    });
+}
+
+function triggerChotDauVao() {
+    if (!confirm('XÁC NHẬN CHỐT ĐẦU VÀO (BGH)?\nSau khi chốt, hệ thống sẽ tạo bản chụp bất biến dau_vao_da_chot_json và chuyển sang trạng thái DA_XAC_NHAN.')) return;
+
+    let config = null;
+    if (document.getElementById('modalConfigDotXep')?.classList.contains('show')) {
+        config = collectConfigFromUI();
+    }
+
+    fetch('/Admin/ThoiKhoaBieu/ChotDauVao', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: JSON.stringify({
+            banTkbId: currentBanTkbId,
+            config: config
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+function triggerAutoSchedule(banTkbId) {
+    if (!confirm('Bắt đầu chạy thuật toán xếp tự động bằng Google OR-Tools CP-SAT?')) return;
+    fetch('/Admin/ThoiKhoaBieu/AutoSchedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: 'banTkbId=' + banTkbId
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+function reSolveRemaining(banTkbId) {
+    if (!confirm('Tự động giải và xếp các tiết còn lại trong danh sách Chưa Xếp?')) return;
+    fetch('/Admin/ThoiKhoaBieu/ReSolveRemaining', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: 'banTkbId=' + banTkbId
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+function duyetBanTkb(banTkbId) {
+    if (!confirm('Xác nhận duyệt bản thời khóa biểu này?')) return;
+    fetch('/Admin/ThoiKhoaBieu/DuyetBanTkb', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: 'banTkbId=' + banTkbId
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+function congBoBanTkb(banTkbId) {
+    if (!confirm('XÁC NHẬN CÔNG BỐ THỜI KHÓA BIỂU?\nLịch sẽ áp dụng cho các lớp được chọn trong khoảng ngày hiệu lực. Các lớp ngoài phạm vi giữ nguyên lịch cũ.')) return;
+    fetch('/Admin/ThoiKhoaBieu/CongBo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: 'banTkbId=' + banTkbId
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+// Drag & drop handlers
+function onDragOver(ev) {
+    ev.preventDefault();
+}
+
+function onDropSlot(ev, targetSlotId) {
+    ev.preventDefault();
+}
+
+function onDropEmpty(ev, thu, tiet, buoi) {
+    ev.preventDefault();
+}
+</script>

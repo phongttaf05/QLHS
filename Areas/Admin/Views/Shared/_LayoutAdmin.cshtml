@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Quản Trị Nhà Trường</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+            --topbar-height: 64px;
+            --admin-primary: #1e3a8a;
+            --admin-sidebar-start: #0f172a;
+            --admin-sidebar-end: #1e293b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            overflow-x: hidden;
+        }
+
+        .topbar {
+            height: var(--topbar-height);
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1030;
+            background-color: #ffffff;
+            border-bottom: 2px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,.04);
+        }
+
+        .sidebar-wrapper {
+            width: var(--sidebar-width);
+            position: fixed;
+            top: var(--topbar-height);
+            bottom: 0;
+            left: 0;
+            z-index: 1020;
+            background: linear-gradient(180deg, var(--admin-sidebar-start) 0%, var(--admin-sidebar-end) 100%);
+            transition: all 0.25s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar-brand {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(0,0,0,0.2);
+            text-decoration: none !important;
+            transition: background 0.2s ease;
+        }
+
+        .sidebar-brand:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        .content-wrapper {
+            margin-top: var(--topbar-height);
+            margin-left: var(--sidebar-width);
+            padding: 24px 28px;
+            min-height: calc(100vh - var(--topbar-height) - 56px);
+            transition: all 0.25s ease;
+        }
+
+        .main-footer {
+            margin-left: var(--sidebar-width);
+            height: 56px;
+            line-height: 56px;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            transition: all 0.25s ease;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 10px 12px;
+            margin: 0;
+        }
+
+        .sidebar-heading {
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            padding: 14px 12px 6px 12px;
+            color: #94a3b8 !important;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            color: #cbd5e1;
+            text-decoration: none;
+            white-space: nowrap;
+            border-radius: 8px;
+            margin-bottom: 3px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            transform: translateX(3px);
+        }
+
+        .sidebar-menu a.active {
+            background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+        }
+
+        .sidebar-menu i {
+            font-size: 1.15rem;
+            min-width: 32px;
+            display: flex;
+            align-items: center;
+        }
+
+        body.sidebar-collapsed .sidebar-wrapper {
+            width: var(--sidebar-collapsed-width);
+        }
+        body.sidebar-collapsed .content-wrapper,
+        body.sidebar-collapsed .main-footer {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+        body.sidebar-collapsed .menu-text,
+        body.sidebar-collapsed .sidebar-heading,
+        body.sidebar-collapsed .sidebar-brand-text {
+            display: none !important;
+        }
+        body.sidebar-collapsed .sidebar-menu a {
+            justify-content: center;
+            padding: 12px 0;
+        }
+        body.sidebar-collapsed .sidebar-menu i {
+            margin: 0 auto;
+            font-size: 1.3rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOPBAR ADMIN -->
+    <header class="topbar d-flex align-items-center justify-content-between px-3 px-md-4">
+        <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-light btn-sm rounded-circle border shadow-sm p-2 d-flex align-items-center justify-content-center" id="sidebarToggle" type="button" style="width: 38px; height: 38px;">
+                <i class="bi bi-list fs-5"></i>
+            </button>
+            <a asp-area="Admin" asp-controller="Home" asp-action="Index" class="d-flex align-items-center gap-2 text-decoration-none">
+                <span class="badge bg-danger px-3 py-2 fs-6 rounded-pill">
+                    <i class="bi bi-shield-lock-fill me-1"></i>ADMIN CONSOLE
+                </span>
+                <span class="text-muted d-none d-md-inline small fw-semibold">| Hệ thống Quản trị Nhà trường</span>
+            </a>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="dropdown">
+                <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2 border rounded-pill px-3 py-1 shadow-sm" type="button" data-bs-toggle="dropdown">
+                    <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                        A
+                    </div>
+                    <span class="fw-semibold small d-none d-sm-inline">@User.Identity?.Name (Quản trị viên)</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3 mt-2">
+                    <li><a class="dropdown-item py-2" asp-area="" asp-controller="Home" asp-action="Index"><i class="bi bi-house me-2 text-primary"></i>Về cổng trường</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item py-2 text-danger" asp-area="" asp-controller="Account" asp-action="Logout"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</a></li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <!-- SIDEBAR DÀNH RIÊNG CHO ADMIN -->
+    <aside class="sidebar-wrapper" id="sidebar">
+        <a asp-area="Admin" asp-controller="Home" asp-action="Index" class="sidebar-brand d-flex align-items-center gap-2 text-white">
+            <i class="bi bi-gear-wide-connected text-primary fs-4"></i>
+            <span class="sidebar-brand-text fw-bold fs-6">QUẢN LÝ TIỂU HỌC</span>
+        </a>
+
+        <ul class="sidebar-menu">
+            <div class="sidebar-heading">BẢNG ĐIỀU KHIỂN</div>
+            <li>
+                <a asp-area="Admin" asp-controller="Home" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")">
+                    <i class="bi bi-speedometer2 text-info"></i>
+                    <span class="menu-text">Dashboard Tổng Quan</span>
+                </a>
+            </li>
+
+            <div class="sidebar-heading">THỜI KHÓA BIỂU & ĐÀO TẠO</div>
+            <li>
+                <a asp-area="Admin" asp-controller="ThoiKhoaBieu" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "ThoiKhoaBieu" ? "active" : "")">
+                    <i class="bi bi-calendar3-week text-warning"></i>
+                    <span class="menu-text">Lập TKB (OR-Tools)</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="Admin" asp-controller="ChuyenCan" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "ChuyenCan" ? "active" : "")">
+                    <i class="bi bi-clipboard2-check text-success"></i>
+                    <span class="menu-text">Quản Lý Chuyên Cần</span>
+                </a>
+            </li>
+
+            <div class="sidebar-heading">QUẢN LÝ HỒ SƠ & LỚP HỌC</div>
+            <li>
+                <a asp-area="Admin" asp-controller="HocSinh" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "HocSinh" ? "active" : "")">
+                    <i class="bi bi-people text-success"></i>
+                    <span class="menu-text">Hồ Sơ Học Sinh</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="Admin" asp-controller="LopHoc" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "LopHoc" ? "active" : "")">
+                    <i class="bi bi-door-open text-primary"></i>
+                    <span class="menu-text">Lớp Học & Phân Lớp</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="Admin" asp-controller="GiaoVien" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "GiaoVien" ? "active" : "")">
+                    <i class="bi bi-person-badge text-info"></i>
+                    <span class="menu-text">Giáo Viên & Phân Công</span>
+                </a>
+            </li>
+
+            <div class="sidebar-heading">DANH MỤC & CẤU HÌNH GỐC</div>
+            <li>
+                <a asp-area="Admin" asp-controller="MonHoc" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "MonHoc" ? "active" : "")">
+                    <i class="bi bi-book text-warning"></i>
+                    <span class="menu-text">Danh Mục Môn Học</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="Admin" asp-controller="KhoiLop" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "KhoiLop" ? "active" : "")">
+                    <i class="bi bi-layers text-secondary"></i>
+                    <span class="menu-text">Cấu Hình Khối Lớp</span>
+                </a>
+            </li>
+            <li>
+                <a asp-area="Admin" asp-controller="NamHoc" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "NamHoc" ? "active" : "")">
+                    <i class="bi bi-calendar-range text-danger"></i>
+                    <span class="menu-text">Năm Học & Học Kỳ</span>
+                </a>
+            </li>
+
+            <div class="sidebar-heading">TÀI KHOẢN & BẢO MẬT</div>
+            <li>
+                <a asp-area="Admin" asp-controller="TaiKhoan" asp-action="Index" class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "TaiKhoan" ? "active" : "")">
+                    <i class="bi bi-key text-light"></i>
+                    <span class="menu-text">Phân Quyền & Tài Khoản</span>
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- NỘI DUNG CHÍNH -->
+    <main class="content-wrapper">
+        @RenderBody()
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="main-footer text-center text-muted small">
+        &copy; 2026 - Phân Hệ Quản Trị Hệ Thống QLHS Tiểu Học
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const toggleBtn = document.getElementById('sidebarToggle');
+        toggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('admin_sidebar_state', document.body.classList.contains('sidebar-collapsed') ? 'collapsed' : 'expanded');
+        });
+        if (localStorage.getItem('admin_sidebar_state') === 'collapsed') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

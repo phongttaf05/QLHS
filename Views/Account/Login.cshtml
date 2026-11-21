@@ -1,0 +1,49 @@
+@model QLHS.Models.LoginViewModel
+
+@{
+    Layout = null;
+    ViewData["Title"] = "Đăng nhập hệ thống QLHS";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body { background-color: #f4f6f9; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .login-card { width: 100%; max-width: 400px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="card login-card p-4">
+        <h3 class="text-center text-primary mb-3">ĐĂNG NHẬP QLHS</h3>
+        <p class="text-center text-muted small mb-4">Hệ thống Quản lý Học sinh Tiểu học</p>
+
+        <form asp-action="Login" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
+
+            <div class="form-group mb-3">
+                <label asp-for="TenDangNhap" class="form-label"></label>
+                <input asp-for="TenDangNhap" class="form-control" placeholder="Nhập tên đăng nhập..." />
+                <span asp-validation-for="TenDangNhap" class="text-danger small"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="MatKhau" class="form-label"></label>
+                <input asp-for="MatKhau" class="form-control" placeholder="Nhập mật khẩu..." />
+                <span asp-validation-for="MatKhau" class="text-danger small"></span>
+            </div>
+
+            <div class="form-check mb-3">
+                <input asp-for="GhiNho" class="form-check-input" />
+                <label asp-for="GhiNho" class="form-check-label"></label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 fw-bold">ĐĂNG NHẬP</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,290 @@
+@model IEnumerable<QLHS.Models.DiemDanh>
+
+@{
+    ViewData["Title"] = "Lịch Sử Chuyên Cần & Đơn Xin Nghỉ Học";
+    var hocSinh = ViewBag.HocSinhHienTai as QLHS.Models.HocSinh;
+    var dsCon = ViewBag.DanhSachCon as List<QLHS.Models.HocSinh>;
+
+    int selectedStudentId = ViewBag.SelectedStudentId;
+    int selectedThang = ViewBag.SelectedThang;
+    int selectedNam = ViewBag.SelectedNam;
+
+    int tongCoMat = ViewBag.TongCoMat ?? 0;
+    int tongNghiCoPhep = ViewBag.TongNghiCoPhep ?? 0;
+    int tongNghiKhongPhep = ViewBag.TongNghiKhongPhep ?? 0;
+    double tiLeChuyenCan = ViewBag.TiLeChuyenCan ?? 0;
+}
+
+<!-- HEADER & NÚT GỬI ĐƠN NGHỈ HỌC -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+            <div>
+                <h3 class="fw-bold text-warning mb-1">
+                    <i class="bi bi-calendar-check me-2"></i>LỊCH SỬ CHUYÊN CẦN & XIN NGHỈ HỌC
+                </h3>
+                <p class="text-muted mb-0">Theo dõi ngày đi học và nộp đơn xin nghỉ học trực tuyến tới Giáo viên chủ nhiệm</p>
+            </div>
+            <button type="button" class="btn btn-warning fw-bold text-dark rounded-pill px-4 shadow-sm" onclick="openModalXinNghi()">
+                <i class="bi bi-file-earmark-plus me-1"></i>Gửi Đơn Xin Nghỉ Học
+            </button>
+        </div>
+
+        <!-- FORM LỌC -->
+        <form method="get" class="row g-3 pt-2 border-top">
+            @if (dsCon != null && dsCon.Count > 1)
+            {
+                <div class="col-md-4">
+                    <label class="form-label fw-bold small text-muted">Chọn Học sinh:</label>
+                    <select name="studentId" class="form-select fw-bold text-dark" onchange="this.form.submit()">
+                        @foreach (var child in dsCon)
+                        {
+                            <option value="@child.Id" selected="@(child.Id == selectedStudentId)">
+                                @child.HoTen (@child.MaHocSinh)
+                            </option>
+                        }
+                    </select>
+                </div>
+            }
+            else
+            {
+                <input type="hidden" name="studentId" value="@selectedStudentId" />
+            }
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-muted">Tháng:</label>
+                <select name="thang" class="form-select" onchange="this.form.submit()">
+                    @for (int i = 1; i <= 12; i++)
+                    {
+                        <option value="@i" selected="@(i == selectedThang)">Tháng @i</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold small text-muted">Năm:</label>
+                <select name="nam" class="form-select" onchange="this.form.submit()">
+                    @for (int y = 2025; y <= 2027; y++)
+                    {
+                        <option value="@y" selected="@(y == selectedNam)">Năm @y</option>
+                    }
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (hocSinh != null)
+{
+    <!-- THÔNG TIN HỌC SINH -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 bg-light">
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <span class="text-muted d-block small">Họ và tên học sinh:</span>
+                    <strong class="fs-5 text-dark">@hocSinh.HoTen</strong>
+                </div>
+                <div class="col-md-4">
+                    <span class="text-muted d-block small">Lớp học:</span>
+                    <strong class="text-primary">@(hocSinh.LopHocHienTai != null ? "Lớp " + hocSinh.LopHocHienTai.TenLop : "---")</strong>
+                </div>
+                <div class="col-md-4">
+                    <span class="text-muted d-block small">Giáo viên chủ nhiệm:</span>
+                    <strong class="text-dark">@(hocSinh.LopHocHienTai?.GiaoVienChuNhiem != null ? hocSinh.LopHocHienTai.GiaoVienChuNhiem.HoTen : "Chưa phân công")</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3 THẺ THỐNG KÊ TRONG THÁNG -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-success bg-opacity-10 border border-success p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-success small fw-bold text-uppercase">Có mặt</span>
+                        <h2 class="fw-bold text-success mb-0">@tongCoMat buổi</h2>
+                    </div>
+                    <i class="bi bi-check-circle-fill fs-1 text-success opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-warning bg-opacity-10 border border-warning p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-warning text-dark small fw-bold text-uppercase">Nghỉ có phép</span>
+                        <h2 class="fw-bold text-dark mb-0">@tongNghiCoPhep buổi</h2>
+                    </div>
+                    <i class="bi bi-info-circle-fill fs-1 text-warning opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-danger bg-opacity-10 border border-danger p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-danger small fw-bold text-uppercase">Nghỉ không phép</span>
+                        <h2 class="fw-bold text-danger mb-0">@tongNghiKhongPhep buổi</h2>
+                    </div>
+                    <i class="bi bi-x-circle-fill fs-1 text-danger opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG LỊCH SỬ CHUYÊN CẦN -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="fw-bold text-dark mb-0">
+                <i class="bi bi-list-check me-2 text-warning"></i>Nhật Ký Điểm Danh - Tháng @selectedThang/@selectedNam
+            </h5>
+            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2">
+                Tỉ lệ chuyên cần tháng: @tiLeChuyenCan%
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Thứ / Ngày</th>
+                        <th class="text-center">Trạng Thái Điểm Danh</th>
+                        <th>Người Xác Nhận</th>
+                        <th>Thời Gian Cập Nhật</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    @if (item.NgayDiemDanh.HasValue)
+                                    {
+                                        <span class="fw-bold text-dark">@item.NgayDiemDanh.Value.ToString("dd/MM/yyyy")</span>
+                                        <small class="text-muted ms-2">(@item.NgayDiemDanh.Value.ToDateTime(TimeOnly.MinValue).ToString("dddd", new System.Globalization.CultureInfo("vi-VN")))</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">---</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @switch (item.TrangThai)
+                                    {
+                                        case "co_mat":
+                                            <span class="badge bg-success px-3 py-2"><i class="bi bi-check-lg me-1"></i>Có mặt</span>
+                                            break;
+                                        case "nghi_co_phep":
+                                        case "co_phep":
+                                            <span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-envelope-paper me-1"></i>Nghỉ có phép</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-danger px-3 py-2"><i class="bi bi-x-lg me-1"></i>Nghỉ không phép</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="small">
+                                    @if (item.GiaoVienChot != null)
+                                    {
+                                        <span class="text-dark fw-semibold"><i class="bi bi-person-check text-success me-1"></i>GV: @item.GiaoVienChot.HoTen</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-primary"><i class="bi bi-send me-1"></i>Phụ huynh gửi đơn</span>
+                                    }
+                                </td>
+                                <td class="text-muted small">
+                                    @(item.ThoiGianCapNhat.HasValue ? item.ThoiGianCapNhat.Value.ToString("HH:mm dd/MM/yyyy") : "---")
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-5">
+                                <i class="bi bi-calendar-x fs-2 d-block mb-2 text-secondary"></i>
+                                Chưa có bản ghi điểm danh nào trong Tháng @selectedThang/@selectedNam.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- ================================================================= -->
+<!-- MODAL GỬI ĐƠN XIN NGHĨ HỌC TRỰC TUYẾN -->
+<div class="modal fade" id="modalXinNghi" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-warning text-dark border-0 py-3">
+                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-text me-2"></i>Gửi Đơn Xin Nghỉ Học</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formXinNghi">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="hocSinhId" value="@selectedStudentId" />
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Học sinh xin nghỉ:</label>
+                        <input type="text" class="form-control bg-light fw-bold text-primary" value="@(hocSinh?.HoTen)" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ngày xin nghỉ <span class="text-danger">*</span></label>
+                        <input type="date" id="ngayNghi" name="ngayNghi" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" required value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Lý do xin nghỉ <span class="text-danger">*</span></label>
+                        <textarea name="lyDo" id="lyDo" class="form-control" rows="3" placeholder="Nhập lý do chi tiết (Ví dụ: Cháu bị sốt, gia đình có việc bận...)" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark px-4">Gửi Đơn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const modalXinNghi = new bootstrap.Modal(document.getElementById('modalXinNghi'));
+
+        function openModalXinNghi() {
+            document.getElementById('formXinNghi').reset();
+            document.getElementById('ngayNghi').value = new Date().toISOString().split('T')[0];
+            modalXinNghi.show();
+        }
+
+        // Gửi Đơn Xin Nghỉ Học qua AJAX
+        document.getElementById('formXinNghi').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('/PhuHuynh/XinNghiHoc', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    alert(res.message);
+                    modalXinNghi.hide();
+                    location.reload();
+                } else {
+                    alert(res.message);
+                }
+            })
+            .catch(err => {
+                alert('Có lỗi kết nối hệ thống. Vui lòng thử lại sau!');
+            });
+        });
+    </script>
+}
