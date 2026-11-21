@@ -43,29 +43,35 @@
         </button>
         @if (banTkbHienTai != null)
         {
-            <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="openConfigModal()">
+            string st = banTkbHienTai.TrangThai ?? "";
+            bool canConfig = st == "NHAP_DAU_VAO" || st == "DA_XAC_NHAN" || st == "XEP_THAT_BAI";
+            bool canSchedule = st == "DA_XAC_NHAN" || st == "XEP_THAT_BAI" || st == "LICH_NHAP" || st == "CHO_GV_XAC_NHAN";
+            bool canDraftFlow = st == "LICH_NHAP" || st == "CHO_GV_XAC_NHAN";
+            bool canPublish = st == "DA_DUYET";
+
+            <button type="button" class="btn btn-primary fw-bold shadow-sm" onclick="openConfigModal()" disabled="@(!canConfig)">
                 <i class="bi bi-sliders me-1"></i>1. Cấu Hình Đợt Xếp
             </button>
-            <button type="button" class="btn btn-info fw-bold text-white shadow-sm" onclick="triggerPreCheck()">
-                <i class="bi bi-shield-check me-1"></i>2. Kiểm Tra Trước Khi Chốt
+            <button type="button" class="btn btn-info fw-bold text-white shadow-sm" onclick="triggerPreCheck()" disabled="@(!canConfig)">
+                <i class="bi bi-shield-check me-1"></i>2. Kiểm Tra Đầu Vào
             </button>
-            <button type="button" class="btn btn-secondary fw-bold shadow-sm" onclick="triggerChotDauVao()">
-                <i class="bi bi-lock me-1"></i>3. Chốt Đầu Vào (BGH)
+            <button type="button" class="btn btn-secondary fw-bold shadow-sm" onclick="triggerChotDauVao()" disabled="@(!canConfig)">
+                <i class="bi bi-lock me-1"></i>3. Chốt Đầu Vào
             </button>
-            <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="triggerAutoSchedule(@banTkbHienTai.Id)">
+            <button type="button" class="btn btn-success fw-bold shadow-sm" onclick="triggerAutoSchedule(@banTkbHienTai.Id)" disabled="@(!canSchedule)">
                 <i class="bi bi-magic me-1"></i>4. Chạy Xếp OR-Tools
             </button>
-            @if (banTkbHienTai.TrangThai == "LICH_NHAP" || banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN")
+            @if (canDraftFlow)
             {
                 <button type="button" class="btn btn-outline-info fw-bold shadow-sm" onclick="guiGvXacNhan(@banTkbHienTai.Id)">
-                    <i class="bi bi-send-check me-1"></i>4b. Gửi GV Xác Nhận Nháp
+                    <i class="bi bi-send-check me-1"></i>5. Gửi GV Xác Nhận Nháp
                 </button>
             }
-            <button type="button" class="btn btn-warning fw-bold text-dark shadow-sm" onclick="duyetBanTkb(@banTkbHienTai.Id)">
-                <i class="bi bi-check2-all me-1"></i>5. Duyệt Lịch
+            <button type="button" class="btn btn-warning fw-bold text-dark shadow-sm" onclick="duyetBanTkb(@banTkbHienTai.Id)" disabled="@(!canDraftFlow)">
+                <i class="bi bi-check2-all me-1"></i>6. Duyệt Lịch
             </button>
-            <button type="button" class="btn btn-danger fw-bold shadow-sm" onclick="congBoBanTkb(@banTkbHienTai.Id)">
-                <i class="bi bi-broadcast me-1"></i>6. Công Bố Toàn Trường
+            <button type="button" class="btn btn-danger fw-bold shadow-sm" onclick="congBoBanTkb(@banTkbHienTai.Id)" disabled="@(!canPublish)">
+                <i class="bi bi-broadcast me-1"></i>7. Công Bố Toàn Trường
             </button>
         }
     </div>
@@ -156,25 +162,25 @@
             @switch (banTkbHienTai.TrangThai)
             {
                 case "NHAP_DAU_VAO":
-                    <span class="badge bg-secondary fs-6 ms-1">1. NHẬP ĐẦU VÀO</span>
+                    <span class="badge bg-secondary fs-6 ms-1">MỚI TẠO / CẤU HÌNH</span>
                     break;
                 case "DA_XAC_NHAN":
-                    <span class="badge bg-primary fs-6 ms-1">2. ĐÃ CHỐT ĐẦU VÀO</span>
+                    <span class="badge bg-primary fs-6 ms-1">ĐÃ CHỐT ĐẦU VÀO</span>
                     break;
                 case "DANG_XEP":
-                    <span class="badge bg-warning text-dark fs-6 ms-1"><span class="spinner-border spinner-border-sm me-1"></span>ĐANG XẾP...</span>
+                    <span class="badge bg-warning text-dark fs-6 ms-1"><span class="spinner-border spinner-border-sm me-1"></span>ĐANG XẾP LỊCH...</span>
                     break;
                 case "LICH_NHAP":
-                    <span class="badge bg-success fs-6 ms-1">3. LỊCH NHÁP (CHO PHÉP KÉO THẢ)</span>
+                    <span class="badge bg-success fs-6 ms-1">LỊCH NHÁP (CHO PHÉP KÉO THẢ)</span>
                     break;
                 case "CHO_GV_XAC_NHAN":
-                    <span class="badge bg-info text-dark fs-6 ms-1">3B. CHỜ GIÁO VIÊN XÁC NHẬN NHÁP</span>
+                    <span class="badge bg-info text-dark fs-6 ms-1">CHỜ GIÁO VIÊN XÁC NHẬN NHÁP</span>
                     break;
                 case "DA_DUYET":
-                    <span class="badge bg-success fs-6 ms-1">4. ĐÃ DUYỆT</span>
+                    <span class="badge bg-warning text-dark fs-6 ms-1">ĐÃ DUYỆT (CHỜ CÔNG BỐ)</span>
                     break;
                 case "DA_CONG_BO":
-                    <span class="badge bg-danger fs-6 ms-1">5. ĐÃ CÔNG BỐ TOÀN TRƯỜNG</span>
+                    <span class="badge bg-danger fs-6 ms-1">ĐÃ CÔNG BỐ TOÀN TRƯỜNG</span>
                     break;
                 case "XEP_THAT_BAI":
                     <span class="badge bg-danger fs-6 ms-1">XẾP THẤT BÀI</span>
@@ -224,10 +230,17 @@
                 <h6 class="fw-bold mb-0 text-primary">
                     <i class="bi bi-people-fill me-2"></i>TRẠNG THÁI GIÁO VIÊN XÁC NHẬN BẢN NHÁP [v@(banTkbHienTai.SoPhienBan)]
                 </h6>
-                <div class="d-flex gap-2 small">
+                <div class="d-flex gap-2 small align-items-center flex-wrap">
                     <span class="badge bg-success">Đồng ý: @soDongY/@dsXacNhanGv.Count</span>
                     <span class="badge bg-warning text-dark">Chờ phản hồi: @soCho</span>
                     <span class="badge bg-danger">Yêu cầu sửa: @soYeuCauSua</span>
+                    @if (soCho > 0 && (banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN" || banTkbHienTai.TrangThai == "LICH_NHAP"))
+                    {
+                        <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 fw-semibold"
+                                onclick="adminXacNhanThay(@banTkbHienTai.Id, null)">
+                            <i class="bi bi-check2-all me-1"></i>Xác nhận thay tất cả GV chưa phản hồi
+                        </button>
+                    }
                 </div>
             </div>
             <div class="card-body p-0">
@@ -238,7 +251,7 @@
                                 <th class="ps-3">Giáo Viên</th>
                                 <th class="text-center">Trạng Thái</th>
                                 <th>Ý Kiến / Yêu Cầu Sửa Đổi</th>
-                                <th class="pe-3 text-end">Thời Gian</th>
+                                <th class="pe-3 text-end">Thời Gian / Thao Tác</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -263,7 +276,19 @@
                                     <td class="small @(xn.TrangThai == "CAN_DIEU_CHINH" ? "text-danger fw-semibold" : "text-muted")">
                                         @(string.IsNullOrWhiteSpace(xn.YKien) ? "---" : xn.YKien)
                                     </td>
-                                    <td class="pe-3 text-end small text-muted">@(xn.NgayPhanHoi?.ToString("HH:mm dd/MM") ?? "---")</td>
+                                    <td class="pe-3 text-end small text-muted">
+                                        @if (xn.TrangThai == "CHO_XAC_NHAN" && (banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN" || banTkbHienTai.TrangThai == "LICH_NHAP"))
+                                        {
+                                            <button type="button" class="btn btn-xs btn-outline-success py-0 px-2"
+                                                    onclick="adminXacNhanThay(@banTkbHienTai.Id, @xn.GiaoVienId)">
+                                                <i class="bi bi-check-lg me-1"></i>Xác nhận thay
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            @(xn.NgayPhanHoi?.ToString("HH:mm dd/MM") ?? "---")
+                                        }
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -338,11 +363,15 @@
                             {
                                 var item = GetSlot(thu, tiet, "SANG");
                                 bool isChaoCo = (thu == 2 && tiet == 1);
+                                bool allowDrag = viewType != "teacher" && !isChaoCo && (banTkbHienTai.TrangThai == "LICH_NHAP" || banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN");
                                 if (item != null)
                                 {
-                                    <td class="@(isChaoCo ? "bg-danger bg-opacity-10 border-danger" : "bg-primary bg-opacity-10") p-2 slot-cell" 
+                                    <td class="@(isChaoCo ? "bg-danger bg-opacity-10 border-danger" : "bg-primary bg-opacity-10") p-2 slot-cell"
+                                        draggable="@(allowDrag ? "true" : "false")"
+                                        style="@(allowDrag ? "cursor: grab;" : "")"
                                         data-slot-id="@item.KhungTietId" data-thu="@thu" data-tiet="@tiet" data-buoi="SANG"
-                                        ondragover="onDragOver(event)" ondrop="onDropSlot(event, @item.KhungTietId)">
+                                        ondragstart="onDragStartSlot(event, @(item.KhungTietId ?? 0), @(item.MonHocId ?? 0), @(item.GiaoVienId ?? 0), @(item.PhanCongId ?? 0))"
+                                        ondragover="onDragOver(event)" ondrop="onDropSlot(event, @(item.KhungTietId ?? 0))">
                                         <div class="fw-bold @(isChaoCo ? "text-danger" : "text-primary")">
                                             @if (isChaoCo)
                                             {
@@ -400,11 +429,15 @@
                             {
                                 var item = GetSlot(thu, tiet, "CHIEU");
                                 bool isSinhHoat = (thu == 6 && tiet == 3);
+                                bool allowDragChieu = viewType != "teacher" && !isSinhHoat && (banTkbHienTai.TrangThai == "LICH_NHAP" || banTkbHienTai.TrangThai == "CHO_GV_XAC_NHAN");
                                 if (item != null)
                                 {
                                     <td class="@(isSinhHoat ? "bg-success bg-opacity-10 border-success" : "bg-warning bg-opacity-10") p-2 slot-cell"
+                                        draggable="@(allowDragChieu ? "true" : "false")"
+                                        style="@(allowDragChieu ? "cursor: grab;" : "")"
                                         data-slot-id="@item.KhungTietId" data-thu="@thu" data-tiet="@tiet" data-buoi="CHIEU"
-                                        ondragover="onDragOver(event)" ondrop="onDropSlot(event, @item.KhungTietId)">
+                                        ondragstart="onDragStartSlot(event, @(item.KhungTietId ?? 0), @(item.MonHocId ?? 0), @(item.GiaoVienId ?? 0), @(item.PhanCongId ?? 0))"
+                                        ondragover="onDragOver(event)" ondrop="onDropSlot(event, @(item.KhungTietId ?? 0))">
                                         <div class="fw-bold @(isSinhHoat ? "text-success" : "text-dark")">
                                             @if (isSinhHoat)
                                             {
@@ -1216,16 +1249,92 @@ function congBoBanTkb(banTkbId) {
     });
 }
 
-// Drag & drop handlers
+function adminXacNhanThay(banTkbId, giaoVienId) {
+    const msg = giaoVienId
+        ? 'Xác nhận thay cho giáo viên này (do quá hạn phản hồi)?'
+        : 'Xác nhận thay cho TẤT CẢ giáo viên chưa phản hồi của bản nháp này?';
+    if (!confirm(msg)) return;
+
+    const formData = new URLSearchParams();
+    formData.append('banTkbId', banTkbId);
+    if (giaoVienId) formData.append('giaoVienId', giaoVienId);
+
+    fetch('/Admin/ThoiKhoaBieu/AdminXacNhanThay', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: formData.toString()
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.message);
+        if (data.success) location.reload();
+    });
+}
+
+// Drag & drop handlers (hoạt động thật ở chế độ xem theo Lớp khi LICH_NHAP / CHO_GV_XAC_NHAN)
+const khungTietMap = @Html.Raw(ViewBag.KhungTietMapJson ?? "{}");
+let draggedSlot = null;
+
+function onDragStartSlot(ev, fromKhungTietId, monHocId, giaoVienId, phanCongId) {
+    draggedSlot = { fromKhungTietId, monHocId, giaoVienId, phanCongId };
+    ev.dataTransfer.effectAllowed = 'move';
+}
+
 function onDragOver(ev) {
-    ev.preventDefault();
+    if (draggedSlot) {
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = 'move';
+    }
+}
+
+function sendMoveSlot(toKhungTietId) {
+    if (!draggedSlot || !toKhungTietId || draggedSlot.fromKhungTietId === toKhungTietId) return;
+
+    const payload = {
+        banTkbId: @selectedBanTkbId,
+        lopHocId: @selectedLopId,
+        fromKhungTietId: draggedSlot.fromKhungTietId,
+        toKhungTietId: toKhungTietId,
+        monHocId: draggedSlot.monHocId,
+        giaoVienId: draggedSlot.giaoVienId,
+        phanCongId: draggedSlot.phanCongId
+    };
+    draggedSlot = null;
+
+    fetch('/Admin/ThoiKhoaBieu/UpdateDraftSlot', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': getAntiForgeryToken()
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
 }
 
 function onDropSlot(ev, targetSlotId) {
     ev.preventDefault();
+    sendMoveSlot(targetSlotId);
 }
 
 function onDropEmpty(ev, thu, tiet, buoi) {
     ev.preventDefault();
+    const key = `${thu}_${buoi.toUpperCase()}_${tiet}`;
+    const targetSlotId = khungTietMap[key];
+    if (targetSlotId) {
+        sendMoveSlot(targetSlotId);
+    } else {
+        alert('Không tìm thấy khung tiết đích!');
+    }
 }
 </script>

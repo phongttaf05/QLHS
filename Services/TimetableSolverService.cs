@@ -1116,51 +1116,78 @@ namespace QLHS.Services
                 }
 
                 // 2. Trường hợp kéo vào hoặc đổi chỗ giữa 2 ô
-                // Kiểm tra ô đích có bị chiếm chỗ bởi tiết khác của lớp này không
                 var existingAtDest = await _context.ThoiKhoaBieus.FirstOrDefaultAsync(t =>
                     t.BanTkbId == request.BanTkbId &&
                     t.LopHocId == request.LopHocId &&
                     t.KhungTietId == request.ToKhungTietId);
 
-                // Kiểm tra xung đột giáo viên tại ô đích
-                var gvConflict = await _context.ThoiKhoaBieus.AnyAsync(t =>
-                    t.BanTkbId == request.BanTkbId &&
-                    t.LopHocId != request.LopHocId &&
-                    t.GiaoVienId == request.GiaoVienId &&
-                    t.KhungTietId == request.ToKhungTietId);
-
-                if (gvConflict)
-                {
-                    return (false, "Xung đột: Giáo viên phụ trách đã có tiết dạy ở lớp khác tại khung giờ này!");
-                }
-
-                // Kiểm tra giờ bận bắt buộc của giáo viên
-                var gvBan = await _context.GioBanGiaoViens.AnyAsync(g =>
-                    g.GiaoVienId == request.GiaoVienId &&
-                    g.KhungTietId == request.ToKhungTietId &&
-                    g.BatBuoc == true);
-
-                if (gvBan)
-                {
-                    return (false, "Xung đột: Giáo viên đã đăng ký giờ bận bắt buộc tại khung giờ này!");
-                }
-
+                ThoiKhoaBieu? sourceItem = null;
                 if (request.FromKhungTietId > 0)
                 {
-                    // Di chuyển từ ô cũ sang ô mới
-                    var item = await _context.ThoiKhoaBieus.FirstOrDefaultAsync(t =>
+                    if (request.FromKhungTietId == request.ToKhungTietId)
+                        return (true, "Tiết học không thay đổi vị trí.");
+
+                    sourceItem = await _context.ThoiKhoaBieus.FirstOrDefaultAsync(t =>
                         t.BanTkbId == request.BanTkbId &&
                         t.LopHocId == request.LopHocId &&
                         t.KhungTietId == request.FromKhungTietId);
 
-                    if (item == null) return (false, "Không tìm thấy tiết học nguồn!");
+                    if (sourceItem == null) return (false, "Không tìm thấy tiết học nguồn!");
+                }
 
+                int sourceGvId = sourceItem?.GiaoVienId ?? request.GiaoVienId;
+
+                // Kiểm tra xung đột giáo viên nguồn tại ô đích
+                if (sourceGvId > 0)
+                {
+                    bool gvConflictDest = await _context.ThoiKhoaBieus.AnyAsync(t =>
+                        t.BanTkbId == request.BanTkbId &&
+                        t.LopHocId != request.LopHocId &&
+                        t.GiaoVienId == sourceGvId &&
+                        t.KhungTietId == request.ToKhungTietId);
+
+                    if (gvConflictDest)
+                        return (false, "Xung đột: Giáo viên phụ trách tiết nguồn đã có tiết dạy ở lớp khác tại ô đích!");
+
+                    bool gvBanDest = await _context.GioBanGiaoViens.AnyAsync(g =>
+                        g.GiaoVienId == sourceGvId &&
+                        g.KhungTietId == request.ToKhungTietId &&
+                        g.BatBuoc == true);
+
+                    if (gvBanDest)
+                        return (false, "Xung đột: Giáo viên phụ trách tiết nguồn đã đăng ký giờ bận bắt buộc tại ô đích!");
+                }
+
+                if (sourceItem != null)
+                {
                     if (existingAtDest != null)
                     {
+                        // Kiểm tra xung đột 2 CHIỀU cho tiết ở ô đích khi đổi chỗ về ô nguồn
+                        int destGvId = existingAtDest.GiaoVienId ?? 0;
+                        if (destGvId > 0 && destGvId != sourceGvId)
+                        {
+                            bool gvConflictSource = await _context.ThoiKhoaBieus.AnyAsync(t =>
+                                t.BanTkbId == request.BanTkbId &&
+                                t.LopHocId != request.LopHocId &&
+                                t.GiaoVienId == destGvId &&
+                                t.KhungTietId == request.FromKhungTietId);
+
+                            if (gvConflictSource)
+                                return (false, "Xung đột đổi chỗ: Giáo viên của tiết ở ô đích đã có lịch dạy lớp khác tại khung giờ nguồn!");
+
+                            bool gvBanSource = await _context.GioBanGiaoViens.AnyAsync(g =>
+                                g.GiaoVienId == destGvId &&
+                                g.KhungTietId == request.FromKhungTietId &&
+                                g.BatBuoc == true);
+
+                            if (gvBanSource)
+                                return (false, "Xung đột đổi chỗ: Giáo viên của tiết ở ô đích có giờ bận bắt buộc tại khung giờ nguồn!");
+                        }
+
                         // Đổi chỗ 2 tiết (Swap)
                         existingAtDest.KhungTietId = request.FromKhungTietId;
                     }
-                    item.KhungTietId = request.ToKhungTietId;
+                    sourceItem.KhungTietId = request.ToKhungTietId;
                 }
                 else
                 {
@@ -1176,7 +1203,7 @@ namespace QLHS.Services
                         LopHocId = request.LopHocId,
                         KhungTietId = request.ToKhungTietId,
                         MonHocId = request.MonHocId,
-                        GiaoVienId = request.GiaoVienId,
+                        GiaoVienId = sourceGvId,
                         PhanCongId = request.PhanCongId > 0 ? request.PhanCongId : (int?)null
                     };
                     _context.ThoiKhoaBieus.Add(newItem);

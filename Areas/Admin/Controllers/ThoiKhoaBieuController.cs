@@ -130,6 +130,11 @@ namespace QLHS.Areas.Admin.Controllers
                     .ToListAsync();
             }
             ViewBag.DanhSachKhungTiet = dsKhungTiet;
+            var khungMap = dsKhungTiet
+                .Where(k => k.ThuTrongTuan.HasValue && k.TietHoc.HasValue && !string.IsNullOrEmpty(k.BuoiHoc))
+                .GroupBy(k => $"{k.ThuTrongTuan}_{k.BuoiHoc!.ToUpper()}_{k.TietHoc}")
+                .ToDictionary(g => g.Key, g => g.First().Id);
+            ViewBag.KhungTietMapJson = JsonSerializer.Serialize(khungMap);
 
             // Danh sách trạng thái xác nhận lịch nháp của giáo viên (nếu có)
             var dsXacNhanGv = selectedBanTkbId > 0
@@ -448,6 +453,40 @@ namespace QLHS.Areas.Admin.Controllers
             await _context.SaveChangesAsync();
 
             return Json(new { success = true, message = $"Đã gửi Bản TKB nháp [v{banTkb.SoPhienBan}] tới {gvIds.Count} giáo viên để xác nhận/góp ý!" });
+        }
+
+        // POST: Admin/ThoiKhoaBieu/AdminXacNhanThay (Admin xác nhận thay cho GV quá hạn không phản hồi)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminXacNhanThay(int banTkbId, int? giaoVienId)
+        {
+            var banTkb = await _context.BanTkbs.FindAsync(banTkbId);
+            if (banTkb == null)
+                return Json(new { success = false, message = "Không tìm thấy Bản TKB!" });
+
+            if (banTkb.TrangThai != "CHO_GV_XAC_NHAN" && banTkb.TrangThai != "LICH_NHAP")
+                return Json(new { success = false, message = "Bản TKB không ở trạng thái chờ xác nhận nháp!" });
+
+            var query = _context.BanTkbXacNhanGvs
+                .Where(x => x.BanTkbId == banTkbId && x.TrangThai == "CHO_XAC_NHAN");
+
+            if (giaoVienId.HasValue && giaoVienId.Value > 0)
+                query = query.Where(x => x.GiaoVienId == giaoVienId.Value);
+
+            var listPending = await query.ToListAsync();
+            if (!listPending.Any())
+                return Json(new { success = false, message = "Không còn giáo viên nào ở trạng thái Chờ xác nhận!" });
+
+            var now = DateTime.Now;
+            foreach (var item in listPending)
+            {
+                item.TrangThai = "DA_XAC_NHAN";
+                item.YKien = "BGH xác nhận thay (quá hạn phản hồi)";
+                item.NgayPhanHoi = now;
+            }
+
+            await _context.SaveChangesAsync();
+            return Json(new { success = true, message = $"Đã xác nhận thay cho {listPending.Count} giáo viên chưa phản hồi!" });
         }
 
         // POST: Admin/ThoiKhoaBieu/DuyetBanTkb
